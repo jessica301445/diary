@@ -246,7 +246,7 @@
       const left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
       if (viewMode === 'cover'){
         left.className = 'page left cover';
-        left.innerHTML = `<h1>我的手帳</h1><p style="margin-top:20px; font-size:12px;">點擊右箭頭開始</p>`;
+        left.innerHTML = `<h1>陳小妤的日記本</h1><p style="margin-top:20px; font-size:12px;">點擊右箭頭開始</p>`;
         right.style.display = 'none';
       } else {
         left.className = 'page left';
@@ -448,7 +448,7 @@
       let current = makePage();
       const title = document.createElement('div');
       title.className = "pdf-title";
-      title.textContent = "我的手帳日記";
+      title.textContent = "陳小妤的日記本";
       current.appendChild(title);
 
       const formatDate = (s) => (s || "").replaceAll('-', '/');
