@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>手帳日記 - 完美修正版</title>
 
+  <!-- jsPDF (保留你原本的加密設定用法) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- 明確載入 html2canvas：解決 Safari 上 window.html2canvas 不存在的狀況 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- 你原本就有載入（可留著不影響；本版匯出不依賴它） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -52,7 +58,7 @@
     .page.cover { background: #8B4513; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
     .page-header {
-      line-height: 24px; height: 48px; /* 剛好佔兩行格線 */
+      line-height: 24px; height: 48px;
       margin-bottom: 0px;
       border-bottom: 2px solid #D4AF37; font-weight: bold; font-size: 20px;
       display: flex; justify-content: space-between; align-items: flex-end;
@@ -98,7 +104,7 @@
     .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
     .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    /* PDF 暫存容器：留在 DOM，但使用者看不到（避免 iOS 對視窗外元素不渲染） */
+    /* PDF 暫存容器：不移出視窗(避免 iOS 不渲染)，但使用者看不到 */
     #pdf-hidden-area{
       position: fixed;
       top: 0;
@@ -107,12 +113,55 @@
       background: #fff;
       opacity: 0;
       pointer-events: none;
-      transform: scale(0.01);
-      transform-origin: top left;
       z-index: 1;
     }
 
-    /* 生成 PDF 遮罩（使用者永遠只看到它） */
+    .pdf-page{
+      width: 800px;
+      min-height: 1125px; /* 約等於 A4 比例(800 * 297/210) */
+      padding: 40px 40px 30px 40px;
+      background: #fff;
+      font-family: "Microsoft JhengHei", sans-serif;
+    }
+
+    .pdf-title{
+      text-align:center;
+      color:#8B4513;
+      margin-bottom: 24px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .pdf-entry{
+      padding: 18px 0;
+      border-bottom: 2px solid #D4AF37;
+      page-break-inside: avoid;
+    }
+
+    .pdf-entry-header{
+      display:flex;
+      justify-content:space-between;
+      font-weight:700;
+      font-size:18px;
+      margin-bottom:10px;
+      color:#333;
+    }
+
+    .pdf-entry-text{
+      font-size:16px;
+      line-height:1.65;
+      white-space:pre-wrap;
+      color:#222;
+    }
+
+    .pdf-entry img{
+      width:100%;
+      border-radius:10px;
+      margin-top:12px;
+      display:block;
+    }
+
+    /* 生成 PDF 遮罩：使用者永遠只看到這層 */
     #privacy-mask{
       display:none;
       position:fixed;
@@ -120,7 +169,7 @@
       background: rgba(0,0,0,0.85);
       z-index: 9999;
       color:#fff;
-      font-weight:bold;
+      font-weight:700;
       justify-content:center;
       align-items:center;
       text-align:center;
@@ -183,11 +232,14 @@
     </div>
   </div>
 
-  <!-- PDF 暫存容器（不要放到螢幕外） -->
+  <!-- PDF 暫存容器 -->
   <div id="pdf-hidden-area"></div>
 
-  <!-- 隱私遮罩：生成時只顯示這個 -->
-  <div id="privacy-mask">🔒 加密處理中<br><span style="font-weight:normal; color:#ddd;">正在生成受保護的 PDF 檔案...</span></div>
+  <!-- 隱私遮罩 -->
+  <div id="privacy-mask">
+    加密處理中<br>
+    <span style="font-weight:400; color:#ddd;">正在生成受保護的 PDF 檔案...</span>
+  </div>
 
   <script>
     const STORAGE_KEY = 'handbookEntries';
@@ -327,34 +379,92 @@
 
     function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
 
+    function waitTwoFrames(){
+      return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+
     async function exportPDF(){
+      // 未通關不允許匯出（避免任何旁路）
       if(!isAuthenticated){
-        document.getElementById('passwordModal').style.display='flex';
+        document.getElementById('passwordModal').style.display = 'flex';
         return;
       }
 
-      const container = document.getElementById('pdf-hidden-area');
       const mask = document.getElementById('privacy-mask');
+      const container = document.getElementById('pdf-hidden-area');
 
-      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px; font-family:'Microsoft JhengHei', sans-serif;">我的手帳日記</h1>`;
+      // 檢查模組
+      if (!window.html2canvas) {
+        alert("PDF 模組載入失敗：html2canvas 不存在（請確認網路可連到 cdnjs）");
+        return;
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("PDF 模組載入失敗：jsPDF 不存在（請確認網路可連到 cdnjs）");
+        return;
+      }
 
+      // 組 PDF 內容：分頁容器（避免 iOS 超長 canvas 變空白）
+      container.innerHTML = "";
+      const pageHeightPx = 1125;
+
+      const makePage = () => {
+        const p = document.createElement('div');
+        p.className = "pdf-page";
+        return p;
+      };
+
+      let current = makePage();
+      const title = document.createElement('div');
+      title.className = "pdf-title";
+      title.textContent = "我的手帳日記";
+      current.appendChild(title);
+
+      const formatDate = (s) => (s || "").replaceAll('-', '/');
+
+      // 先把 DOM 建起來（opacity 0 仍會 layout）
       entries.forEach(item => {
-        const mood = item.mood !== -1 && item.mood !== undefined ? MOODS[item.mood] : '';
-        const img = item.image ? `<img src="${item.image}" style="width:100%; border-radius:10px; margin-top:15px;">` : '';
-        container.innerHTML += `
-          <div style="padding:30px; border-bottom:2px solid #D4AF37; page-break-inside:avoid; font-family:'Microsoft JhengHei', sans-serif; background:#fff;">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:22px; margin-bottom:10px;">
-              <span>${item.date.replaceAll('-','/')}</span><span>${mood}</span>
-            </div>
-            <div style="font-size:18px; line-height:1.6; white-space:pre-wrap;">${item.text}</div>
-            ${img}
-          </div>`;
+        const entry = document.createElement('div');
+        entry.className = "pdf-entry";
+
+        const header = document.createElement('div');
+        header.className = "pdf-entry-header";
+        const left = document.createElement('span');
+        left.textContent = formatDate(item.date);
+        const right = document.createElement('span');
+        right.textContent = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : "";
+        header.appendChild(left);
+        header.appendChild(right);
+
+        const text = document.createElement('div');
+        text.className = "pdf-entry-text";
+        text.textContent = item.text || "";
+
+        entry.appendChild(header);
+        entry.appendChild(text);
+
+        if (item.image) {
+          const img = document.createElement('img');
+          img.src = item.image;
+          entry.appendChild(img);
+        }
+
+        current.appendChild(entry);
+
+        // 超過一頁就換頁：把最後一個 entry 移到新頁
+        if (current.scrollHeight > pageHeightPx) {
+          current.removeChild(entry);
+          container.appendChild(current);
+
+          current = makePage();
+          current.appendChild(entry);
+        }
       });
+      container.appendChild(current);
 
-      // 使用者只看到遮罩，不會看到內容閃現
-      mask.style.display = 'flex';
+      // 顯示遮罩（使用者只看到這個）
+      mask.style.display = "flex";
 
-      // 等待圖片載入（含 base64 圖）
+      // 等待圖片載入
       const imgs = Array.from(container.querySelectorAll('img'));
       await Promise.all(imgs.map(imgEl => new Promise(resolve => {
         if (imgEl.complete) return resolve();
@@ -362,38 +472,9 @@
         imgEl.onerror = () => resolve();
       })));
 
-      // 讓瀏覽器做完排版
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await waitTwoFrames();
 
       try {
-        if (!window.html2canvas) {
-          alert("PDF 模組載入失敗（html2canvas 不存在）");
-          return;
-        }
-
-        // 用 clone 渲染：clone 裡把 container 還原可見，遮罩關掉，避免空白 & 避免遮罩擋住導致不 paint
-        const canvas = await window.html2canvas(container, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          windowWidth: 800,
-          onclone: (clonedDoc) => {
-            const c = clonedDoc.getElementById('pdf-hidden-area');
-            if (c) {
-              c.style.opacity = '1';
-              c.style.transform = 'none';
-              c.style.position = 'static';
-              c.style.width = '800px';
-              c.style.pointerEvents = 'none';
-              c.style.background = '#ffffff';
-            }
-            const m = clonedDoc.getElementById('privacy-mask');
-            if (m) m.style.display = 'none';
-          }
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
           unit: 'mm',
@@ -405,22 +486,44 @@
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
         const margin = 10;
+        const contentW = pageW - margin * 2;
+        const contentH = pageH - margin * 2;
 
-        const renderW = pageW - margin * 2;
-        const renderH = (canvas.height * renderW) / canvas.width;
+        const pages = Array.from(container.querySelectorAll('.pdf-page'));
 
-        // 用同一張長圖「往上移」切頁
-        let remaining = renderH;
-        let offsetY = 0;
+        for (let i = 0; i < pages.length; i++) {
+          const el = pages[i];
 
-        while (remaining > 0) {
-          const y = margin - offsetY;
-          pdf.addImage(imgData, 'JPEG', margin, y, renderW, renderH);
+          const canvas = await window.html2canvas(el, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            windowWidth: 800,
+            onclone: (clonedDoc) => {
+              // clone 裡：把 pdf 區塊還原可見、把遮罩關掉，避免「被遮住就不 paint」導致空白
+              const c = clonedDoc.getElementById('pdf-hidden-area');
+              if (c) c.style.opacity = '1';
+              const m = clonedDoc.getElementById('privacy-mask');
+              if (m) m.style.display = 'none';
+            }
+          });
 
-          remaining -= (pageH - margin * 2);
-          offsetY += (pageH - margin * 2);
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
-          if (remaining > 0) pdf.addPage();
+          // 讓影像完整塞進 A4 內容區（等比縮放）
+          let drawW = contentW;
+          let drawH = (canvas.height * drawW) / canvas.width;
+
+          if (drawH > contentH) {
+            drawH = contentH;
+            drawW = (canvas.width * drawH) / canvas.height;
+          }
+
+          const x = margin + (contentW - drawW) / 2;
+          const y = margin;
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
         }
 
         pdf.save('My-Diary.pdf');
@@ -428,7 +531,7 @@
         console.error(err);
         alert("匯出失敗，請再試一次");
       } finally {
-        mask.style.display = 'none';
+        mask.style.display = "none";
         container.innerHTML = "";
       }
     }
