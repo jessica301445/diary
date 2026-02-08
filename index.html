@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>手帳日記 - 完美修正版</title>
 
-  <!-- jsPDF (保留你原本的加密設定用法) -->
+  <!-- jsPDF（保留加密） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- 明確載入 html2canvas：解決 Safari 上 window.html2canvas 不存在的狀況 -->
+  <!-- 明確載入 html2canvas（iPhone Safari 穩定用） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-  <!-- 你原本就有載入（可留著不影響；本版匯出不依賴它） -->
+  <!-- 保留（不影響；本版匯出不依賴 wrapper） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -104,7 +102,7 @@
     .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
     .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    /* PDF 暫存容器：不移出視窗(避免 iOS 不渲染)，但使用者看不到 */
+    /* PDF 暫存區：不移出視窗(避免 iOS 不渲染)，但使用者看不到 */
     #pdf-hidden-area{
       position: fixed;
       top: 0;
@@ -118,12 +116,11 @@
 
     .pdf-page{
       width: 800px;
-      min-height: 1125px; /* 約等於 A4 比例(800 * 297/210) */
+      min-height: 1125px; /* 約 A4 比例 */
       padding: 40px 40px 30px 40px;
       background: #fff;
       font-family: "Microsoft JhengHei", sans-serif;
     }
-
     .pdf-title{
       text-align:center;
       color:#8B4513;
@@ -131,13 +128,11 @@
       font-size: 28px;
       font-weight: 700;
     }
-
     .pdf-entry{
       padding: 18px 0;
       border-bottom: 2px solid #D4AF37;
       page-break-inside: avoid;
     }
-
     .pdf-entry-header{
       display:flex;
       justify-content:space-between;
@@ -146,14 +141,12 @@
       margin-bottom:10px;
       color:#333;
     }
-
     .pdf-entry-text{
       font-size:16px;
       line-height:1.65;
       white-space:pre-wrap;
       color:#222;
     }
-
     .pdf-entry img{
       width:100%;
       border-radius:10px;
@@ -329,16 +322,58 @@
       document.getElementById('entryModal').style.display = 'flex';
     }
 
-    function handleImage(e) {
+    // ====== 新增：圖片壓縮工具（選照片當下就壓縮） ======
+    async function compressImageFileToBase64(file, {
+      maxSize = 1600,      // 長邊最大像素
+      mime = 'image/jpeg', // 統一轉 jpeg 比較省
+      quality = 0.75       // 0~1
+    } = {}) {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const scale = Math.min(1, maxSize / Math.max(w, h));
+      const nw = Math.max(1, Math.round(w * scale));
+      const nh = Math.max(1, Math.round(h * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = nw;
+      canvas.height = nh;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, nw, nh);
+
+      URL.revokeObjectURL(url);
+
+      return canvas.toDataURL(mime, quality);
+    }
+
+    // ====== 替換：handleImage 改成壓縮版 ======
+    async function handleImage(e) {
       const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          currentImgBase64 = ev.target.result;
-          document.getElementById('previewImg').src = currentImgBase64;
-          document.getElementById('previewImg').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+
+      try {
+        currentImgBase64 = await compressImageFileToBase64(file, {
+          maxSize: 1600,
+          quality: 0.75
+        });
+
+        document.getElementById('previewImg').src = currentImgBase64;
+        document.getElementById('previewImg').style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        alert('圖片讀取/壓縮失敗，請換一張照片再試一次');
+      } finally {
+        // 讓同一張照片下次仍可觸發 onchange
+        e.target.value = '';
       }
     }
 
@@ -383,8 +418,8 @@
       return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     }
 
+    // PDF 匯出（分頁渲染，並保留加密）
     async function exportPDF(){
-      // 未通關不允許匯出（避免任何旁路）
       if(!isAuthenticated){
         document.getElementById('passwordModal').style.display = 'flex';
         return;
@@ -393,7 +428,6 @@
       const mask = document.getElementById('privacy-mask');
       const container = document.getElementById('pdf-hidden-area');
 
-      // 檢查模組
       if (!window.html2canvas) {
         alert("PDF 模組載入失敗：html2canvas 不存在（請確認網路可連到 cdnjs）");
         return;
@@ -403,9 +437,7 @@
         return;
       }
 
-      // 組 PDF 內容：分頁容器（避免 iOS 超長 canvas 變空白）
       container.innerHTML = "";
-      const pageHeightPx = 1125;
 
       const makePage = () => {
         const p = document.createElement('div');
@@ -421,17 +453,19 @@
 
       const formatDate = (s) => (s || "").replaceAll('-', '/');
 
-      // 先把 DOM 建起來（opacity 0 仍會 layout）
       entries.forEach(item => {
         const entry = document.createElement('div');
         entry.className = "pdf-entry";
 
         const header = document.createElement('div');
         header.className = "pdf-entry-header";
+
         const left = document.createElement('span');
         left.textContent = formatDate(item.date);
+
         const right = document.createElement('span');
         right.textContent = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : "";
+
         header.appendChild(left);
         header.appendChild(right);
 
@@ -444,14 +478,14 @@
 
         if (item.image) {
           const img = document.createElement('img');
-          img.src = item.image;
+          img.src = item.image; // 已是壓縮後 base64
           entry.appendChild(img);
         }
 
         current.appendChild(entry);
 
         // 超過一頁就換頁：把最後一個 entry 移到新頁
-        if (current.scrollHeight > pageHeightPx) {
+        if (current.scrollHeight > 1125) {
           current.removeChild(entry);
           container.appendChild(current);
 
@@ -459,9 +493,10 @@
           current.appendChild(entry);
         }
       });
+
       container.appendChild(current);
 
-      // 顯示遮罩（使用者只看到這個）
+      // 遮罩：避免任何閃現預覽
       mask.style.display = "flex";
 
       // 等待圖片載入
@@ -500,7 +535,6 @@
             backgroundColor: '#ffffff',
             windowWidth: 800,
             onclone: (clonedDoc) => {
-              // clone 裡：把 pdf 區塊還原可見、把遮罩關掉，避免「被遮住就不 paint」導致空白
               const c = clonedDoc.getElementById('pdf-hidden-area');
               if (c) c.style.opacity = '1';
               const m = clonedDoc.getElementById('privacy-mask');
@@ -510,7 +544,7 @@
 
           const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
-          // 讓影像完整塞進 A4 內容區（等比縮放）
+          // 等比塞進 A4 內容區
           let drawW = contentW;
           let drawH = (canvas.height * drawW) / canvas.width;
 
