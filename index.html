@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>手帳日記 - 完整功能恢復版</title>
+  <title>手帳日記 - 手機優化完美版</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -41,13 +41,13 @@
       z-index: 50; transform: translateX(-50%);
     }
 
-    /* 精準對齊隔線與修正標題裁切 */
+    /* 關鍵：格線對齊優化 */
     .page {
       position: absolute; width: 50%; height: 100%;
-      padding: 60px 35px 120px 35px; /* 增加頂部 padding 避免裁切 */
+      padding: 50px 30px 120px 30px; 
       background: white; overflow-y: auto;
       line-height: 28px; font-size: 16px;
-      background-image: repeating-linear-gradient(0deg, #f5f5f5 0px, #f5f5f5 1px, transparent 1px, transparent 28px);
+      background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 28px);
       background-attachment: local;
       box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
       word-wrap: break-word;
@@ -58,52 +58,58 @@
     .page.cover { background: #8B4513; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
     .page-header {
-      line-height: 1.2; margin-bottom: 24px; padding-bottom: 8px;
+      line-height: 28px; height: 56px; /* 固定為兩行高度 */
+      margin-bottom: 0px; padding-bottom: 4px;
       border-bottom: 3px solid #D4AF37; font-weight: bold; font-size: 20px;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: flex-end;
     }
 
     .entry-actions { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 5px; }
     .entry-actions button {
       background: #4CAF50; color: white; border: none; padding: 4px 10px;
-      border-radius: 12px; cursor: pointer; font-size: 12px;
+      border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: bold;
     }
     .entry-actions .delete { background: #f44336; }
 
-    /* 3D 翻頁動畫樣式 */
+    /* 翻頁動畫 */
     .flip-sheet { position: absolute; top: 0; height: 100%; width: 50%; z-index: 2000; transform-style: preserve-3d; display: none; pointer-events: none; }
-    .flip-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; padding: 60px 35px; backface-visibility: hidden; background-image: repeating-linear-gradient(0deg, #f5f5f5 0px, #f5f5f5 1px, transparent 1px, transparent 28px); }
+    .flip-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; padding: 50px 30px; backface-visibility: hidden; background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 28px); }
     .flip-sheet.rtl { right: 0; transform-origin: left center; }
     .flip-sheet.rtl .flip-back { transform: rotateY(180deg); }
-    .flip-sheet.rtl.turn { transition: transform 0.8s ease-in-out; transform: rotateY(-180deg); }
+    .flip-sheet.rtl.turn { transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform: rotateY(-180deg); }
 
-    /* 控制列適配 */
+    /* 控制列 RWD */
     .controls {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(255,255,255,0.95); padding: 10px 20px; border-radius: 40px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 5000;
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 8px;
     }
     .controls button {
       background: linear-gradient(145deg, #FF9800, #F57C00); border: none; color: white;
-      padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px;
+      padding: 8px 12px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 13px;
     }
 
     @media (max-width: 768px) {
-      .book-container { width: 95vw; height: 85vh; margin-top: -20px; }
+      .book-container { width: 95vw; height: 82vh; margin-top: -30px; }
       .book-spine { display: none !important; }
-      .page { width: 100% !important; border-radius: 20px !important; padding-top: 50px !important; }
+      .page { width: 100% !important; border-radius: 20px !important; padding-top: 55px !important; }
       .page.right { display: none !important; }
       .controls { bottom: 0; width: 100%; border-radius: 0; height: 10%; justify-content: space-around; }
-      .controls button { padding: 6px 10px; font-size: 12px; flex: 1; max-width: 80px; }
+      .controls button { flex: 1; max-width: 75px; padding: 6px 5px; }
     }
 
-    /* 彈窗與照片 */
+    /* 彈窗與心情選擇 */
     .entry-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: center; }
-    .modal-content { background: #fffdf9; padding: 25px; border-radius: 25px; width: 90%; max-width: 500px; border: 3px solid #8B4513; }
-    .modal-content textarea { width: 100%; height: 150px; margin-top: 10px; padding: 12px; border-radius: 10px; border: 1px solid #ddd; }
+    .modal-content { background: #fffdf9; padding: 20px; border-radius: 25px; width: 92%; max-width: 500px; border: 3px solid #8B4513; position: relative; }
+    
+    .mood-selector { position: absolute; top: 20px; right: 20px; display: flex; gap: 5px; }
+    .mood-icon { font-size: 20px; cursor: pointer; filter: grayscale(1); transition: 0.2s; }
+    .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
+
+    .modal-content textarea { width: 100%; height: 160px; margin-top: 10px; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-family: inherit; font-size: 16px; }
     .photo-upload-container { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
-    .image-preview { width: 60px; height: 60px; border: 2px dashed #D4AF37; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+    .image-preview { width: 55px; height: 55px; border: 2px dashed #D4AF37; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
     .image-preview img { width: 100%; height: 100%; object-fit: cover; }
     #export-container { position: absolute; left: -9999px; top: -9999px; width: 210mm; }
   </style>
@@ -124,14 +130,14 @@
 
   <div class="controls">
     <button onclick="prevPage()">⬅️</button>
-    <span id="pageCounter" style="font-weight:bold;">封面</span>
+    <span id="pageCounter" style="font-weight:bold; font-size: 12px;">封面</span>
     <button onclick="showNewEntryModal()">✏️新增</button>
     <button onclick="exportPDF()">📄PDF</button>
     <button onclick="nextPage()">➡️</button>
   </div>
 
   <div id="passwordModal" class="entry-modal">
-    <div class="modal-content" style="max-width: 320px; text-align: center;">
+    <div class="modal-content" style="max-width: 300px; text-align: center;">
       <h3 style="margin-bottom:15px;">請輸入通關密語</h3>
       <input type="password" id="passwordInput" style="width:100%; padding:12px; margin-bottom:15px; border-radius:10px; border:1px solid #ddd; text-align:center;">
       <button onclick="checkPassword()" style="background:#4CAF50; color:white; padding:10px 25px; border:none; border-radius:20px; font-weight:bold;">確認</button>
@@ -141,8 +147,17 @@
   <div id="entryModal" class="entry-modal">
     <div class="modal-content">
       <h3 id="modalTitle">撰寫手帳</h3>
-      <input id="modalDate" type="date" style="width:100%; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
-      <textarea id="modalEntry" placeholder="今天發生了什麼事？"></textarea>
+      
+      <div class="mood-selector">
+        <span class="mood-icon" onclick="selectMood(0)">😊</span>
+        <span class="mood-icon" onclick="selectMood(1)">😍</span>
+        <span class="mood-icon" onclick="selectMood(2)">😆</span>
+        <span class="mood-icon" onclick="selectMood(3)">😢</span>
+        <span class="mood-icon" onclick="selectMood(4)">😫</span>
+      </div>
+
+      <input id="modalDate" type="date" style="width:60%; padding:8px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
+      <textarea id="modalEntry" placeholder="今天的心情如何？"></textarea>
       
       <div class="photo-upload-container">
         <span style="font-size: 12px;">插入照片：</span>
@@ -164,40 +179,43 @@
 
   <script>
     const STORAGE_KEY = 'handbookEntries';
+    const MOODS = ['😊', '😍', '😆', '😢', '😫'];
     const DIARY_PASSWORD = '0000';
     let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = "", isAuthenticated = false, isFlipping = false;
+    let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = "", currentMoodIdx = -1, isAuthenticated = false, isFlipping = false;
 
     function renderPage(){
       const book = document.getElementById('book'), left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
       if (viewMode === 'cover'){
         left.className = 'page left cover';
-        left.innerHTML = `<h1>我的日記</h1><p>My Diary</p><p style="margin-top:20px; font-size:12px;">點擊「下一頁」輸入密碼</p>`;
+        left.innerHTML = `<h1>我的日記</h1><p>My Diary</p><p style="margin-top:20px; font-size:12px;">點擊右箭頭開始</p>`;
         right.style.display = 'none';
       } else {
         left.className = 'page left';
         left.innerHTML = getPageHtml(currentPage);
-        if (window.innerWidth <= 768) {
-          right.style.display = 'none';
-        } else {
-          right.style.display = 'block';
-          right.innerHTML = getPageHtml(currentPage + 1);
-        }
+        if (window.innerWidth <= 768) { right.style.display = 'none'; } 
+        else { right.style.display = 'block'; right.innerHTML = getPageHtml(currentPage + 1); }
       }
       updateNavButtons();
     }
 
-    function getPageHtml(idx){
+    function getPageHtml(idx, hideActions = false){
       if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc;">空白頁</div>`;
       const item = entries[idx];
-      const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px;">` : '';
-      return `
+      const mood = item.mood !== undefined && item.mood !== -1 ? MOODS[item.mood] : '';
+      const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px; display:block;">` : '';
+      const actions = hideActions ? '' : `
         <div class="entry-actions">
           <button onclick="editEntry(${idx})">編輯</button>
           <button class="delete" onclick="deleteEntry(${idx})">刪除</button>
+        </div>`;
+      return `
+        ${actions}
+        <div class="page-header">
+          <span>${item.date.replaceAll('-','/')}</span>
+          <span style="font-size:24px;">${mood}</span>
         </div>
-        <div class="page-header">${item.date.replaceAll('-','/')}</div>
-        <div style="min-height:200px;">${item.text}</div>
+        <div style="min-height:200px; padding-top:4px;">${item.text}</div>
         ${imgHtml}
       `;
     }
@@ -208,8 +226,9 @@
       const sheet = document.getElementById('flipSheet');
       const front = document.getElementById('flipFront'), back = document.getElementById('flipBack');
       
-      front.innerHTML = getPageHtml(currentPage);
-      back.innerHTML = getPageHtml(targetIdx);
+      // 動畫時隱藏按鈕避免殘影
+      front.innerHTML = getPageHtml(currentPage, true);
+      back.innerHTML = getPageHtml(targetIdx, true);
       
       sheet.style.display = 'block';
       sheet.classList.add('rtl', 'turn');
@@ -228,10 +247,11 @@
         isAuthenticated = true;
         document.getElementById('passwordModal').style.display = 'none';
         viewMode = 'content'; currentPage = 0; renderPage();
-      } else { alert("密碼錯誤！"); }
+      } else { alert("密碼錯誤"); }
     }
 
     function nextPage(){
+      if(isFlipping) return;
       if(viewMode === 'cover') {
         if(!isAuthenticated) { document.getElementById('passwordModal').style.display='flex'; return; }
         viewMode = 'content'; renderPage(); return;
@@ -241,21 +261,28 @@
     }
 
     function prevPage(){
+      if(isFlipping) return;
       const step = window.innerWidth <= 768 ? 1 : 2;
       if(currentPage - step < 0) { viewMode = 'cover'; renderPage(); }
       else { currentPage -= step; renderPage(); }
     }
 
     function updateNavButtons(){
-      document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '封面' : `${currentPage+1}/${entries.length}`;
+      document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '封面' : `${currentPage+1} / ${entries.length}`;
+    }
+
+    function selectMood(idx) {
+      currentMoodIdx = idx;
+      document.querySelectorAll('.mood-icon').forEach((el, i) => el.classList.toggle('selected', i === idx));
     }
 
     function showNewEntryModal(){
-      editingIndex = -1; currentImgBase64 = "";
+      editingIndex = -1; currentImgBase64 = ""; currentMoodIdx = -1;
       document.getElementById('modalEntry').value = "";
       document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
       document.getElementById('previewImg').style.display = 'none';
       document.getElementById('previewText').style.display = 'block';
+      document.querySelectorAll('.mood-icon').forEach(el => el.classList.remove('selected'));
       document.getElementById('entryModal').style.display = 'flex';
     }
 
@@ -263,11 +290,15 @@
       editingIndex = idx; const item = entries[idx];
       document.getElementById('modalEntry').value = item.text;
       document.getElementById('modalDate').value = item.date;
+      selectMood(item.mood);
       if(item.image) {
         currentImgBase64 = item.image;
         document.getElementById('previewImg').src = item.image;
         document.getElementById('previewImg').style.display = 'block';
         document.getElementById('previewText').style.display = 'none';
+      } else {
+        document.getElementById('previewImg').style.display = 'none';
+        document.getElementById('previewText').style.display = 'block';
       }
       document.getElementById('entryModal').style.display = 'flex';
     }
@@ -276,8 +307,8 @@
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
-          currentImgBase64 = event.target.result;
+        reader.onload = (ev) => {
+          currentImgBase64 = ev.target.result;
           document.getElementById('previewImg').src = currentImgBase64;
           document.getElementById('previewImg').style.display = 'block';
           document.getElementById('previewText').style.display = 'none';
@@ -289,8 +320,9 @@
     function saveEntry(){
       const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
       if(!text) return;
-      const data = { text, date, image: currentImgBase64 };
+      const data = { text, date, image: currentImgBase64, mood: currentMoodIdx };
       if(editingIndex === -1) entries.unshift(data); else entries[editingIndex] = data;
+      entries.sort((a,b) => new Date(b.date) - new Date(a.date));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
       document.getElementById('entryModal').style.display = 'none';
       renderPage();
@@ -301,11 +333,11 @@
 
     async function exportPDF(){
       const content = document.getElementById('pdf-content');
-      content.innerHTML = entries.map(item => `
-        <div style="padding:20px; border-bottom:1px solid #eee;">
-          <h3>${item.date}</h3>
-          <p>${item.text}</p>
-          ${item.image ? `<img src="${item.image}" style="width:200px;">` : ''}
+      content.innerHTML = `<h1 style="text-align:center;">我的手帳日記</h1>` + entries.map(item => `
+        <div style="padding:15px; border-bottom:1px solid #eee; page-break-inside:avoid;">
+          <div style="font-weight:bold; color:#8B4513;">${item.date} ${item.mood !== -1 ? MOODS[item.mood] : ''}</div>
+          <p style="margin-top:10px;">${item.text}</p>
+          ${item.image ? `<img src="${item.image}" style="width:150px; margin-top:10px;">` : ''}
         </div>
       `).join('');
       const opt = { 
