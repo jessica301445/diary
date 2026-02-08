@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>手帳日記 - 最終完美版</title>
+  <title>手帳日記 - 安全加密版</title>
 
   <!-- 引入 PDF 核心庫 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -25,7 +25,7 @@
       perspective: 1200px;
       width: 900px; height: 650px;
       position: relative;
-      transition: opacity 0.3s; /* 用於 PDF 生成時的切換動畫 */
+      transition: opacity 0.3s; 
     }
 
     .book {
@@ -44,7 +44,6 @@
       background: white; overflow-y: auto;
       line-height: 24px; 
       font-size: 16px;
-      /* 格線背景 */
       background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
       background-attachment: local;
       box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
@@ -104,30 +103,52 @@
     .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
     .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    /* --- PDF 專用樣式 (只在生成時出現) --- */
+    /* --- PDF 相關樣式修正 --- */
+    
+    /* 1. PDF 內容暫存區 */
+    /* 必須存在於螢幕上(display:block)，但要被遮住 */
     #pdf-staging-area {
-        display: none; /* 平時隱藏 */
+        position: fixed; /* 固定在螢幕上 */
+        top: 0; 
+        left: 0; 
         width: 100%;
-        max-width: 800px;
-        margin: 0 auto;
-        background: white;
+        height: 100%;
+        overflow-y: scroll; /* 允許內容展開 */
+        background: white; 
+        z-index: 9000; /* 高於書本(100-5000) */
+        display: none; /* 平時隱藏 */
         padding: 20px;
     }
     
-    /* 生成 PDF 時強制顯示的容器 */
-    body.generating-pdf {
-        background: #525659; /* 讓背景變深，模仿 PDF 預覽 */
-        overflow-y: auto !important; /* 允許滾動 */
-        display: block !important; /* 改變 flex 佈局 */
+    /* 2. 隱私遮罩 (Loading 畫面) */
+    /* z-index 必須比 pdf-staging-area 更高，且不透明 */
+    #privacy-mask {
+        position: fixed;
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: #333333; /* 深色背景，完全不透明 */
+        z-index: 9999; /* 最高層級，擋住下方所有內容 */
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
     }
-    
+
+    /* 生成 PDF 時的狀態類別 */
     body.generating-pdf .book-container,
     body.generating-pdf .controls {
         display: none !important; /* 隱藏原本介面 */
     }
 
     body.generating-pdf #pdf-staging-area {
-        display: block !important; /* 顯示 PDF 內容 */
+        display: block !important; /* 顯示 PDF 內容 (瀏覽器可渲染) */
+    }
+
+    body.generating-pdf #privacy-mask {
+        display: flex !important; /* 顯示遮罩 (使用者只能看到這個) */
     }
   </style>
 </head>
@@ -190,8 +211,14 @@
     </div>
   </div>
 
-  <!-- PDF 生成暫存區 (預設隱藏) -->
+  <!-- PDF 生成暫存區 -->
   <div id="pdf-staging-area"></div>
+  
+  <!-- 隱私安全遮罩 (Loading 畫面) -->
+  <div id="privacy-mask">
+      <div style="font-size:24px; font-weight:bold; margin-bottom:15px;">🔒 加密處理中</div>
+      <div style="font-size:14px; color:#ccc;">正在生成受保護的 PDF 檔案...</div>
+  </div>
 
   <script>
     const STORAGE_KEY = 'handbookEntries';
@@ -324,13 +351,12 @@
     function deleteEntry(idx){ if(confirm('確定刪除？')){ entries.splice(idx,1); localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); renderPage(); } }
     function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
 
-    // --- 終極 PDF 匯出邏輯 (切換視圖法) ---
+    // --- 安全加密 PDF 匯出 (隱私遮罩版) ---
     async function exportPDF(){
-      // 1. 準備 PDF 內容容器
       const container = document.getElementById('pdf-staging-area');
-      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px; font-size:32px; padding-top:20px;">我的手帳日記</h1>`;
       
-      // 插入內容 (轉為適合 A4 列印的樣式)
+      // 1. 準備內容
+      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px; font-size:32px; padding-top:20px;">我的手帳日記</h1>`;
       entries.forEach(item => {
         const mood = item.mood !== -1 && item.mood !== undefined ? MOODS[item.mood] : '';
         const img = item.image ? `<img src="${item.image}" style="width:100%; border-radius:10px; margin-top:15px;">` : '';
@@ -345,39 +371,34 @@
       });
       container.innerHTML += `<div style="text-align:center; padding:20px; color:#999; font-size:12px;">Generated by My Diary App</div>`;
 
-      // 2. 切換模式：隱藏 App，顯示 PDF 內容
-      // 這是解決「空白頁」的關鍵：內容必須在螢幕上被瀏覽器渲染出來
+      // 2. 啟動「生成模式」
+      // 這會讓 body 加上 class，觸發 CSS 變化：
+      // - 顯示 #privacy-mask (z-index 9999, 全黑, 用戶只能看到這個)
+      // - 顯示 #pdf-staging-area (z-index 9000, 在遮罩下面, 瀏覽器看得到)
+      // - 隱藏 .book-container (避免干擾)
       document.body.classList.add('generating-pdf');
       
-      // 顯示載入提示
-      const loading = document.createElement('div');
-      loading.innerHTML = "正在製作加密 PDF，請稍候...";
-      loading.style.cssText = "position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:20px; z-index:99999;";
-      document.body.appendChild(loading);
-
-      // 3. 給瀏覽器一點時間繪製圖片
+      // 3. 等待渲染 (在遮罩保護下進行)
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // 4. 設定參數並匯出
       const opt = {
         margin: 10,
         filename: 'My_Diary_Secured.pdf',
         image: { type: 'jpeg', quality: 0.95 },
+        // 指定 html2canvas 擷取 container (即使它被 mask 擋住，只要 DOM 存在且有尺寸，就會被擷取)
         html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', encryption: { userPassword: DIARY_PASSWORD, ownerPassword: DIARY_PASSWORD } }
       };
 
       try {
-        // 從現在「可見」的 container 抓取畫面
         await html2pdf().set(opt).from(container).save();
       } catch (err) {
         alert("匯出失敗：" + err.message);
       }
 
-      // 5. 恢復原狀
-      document.body.removeChild(loading);
+      // 4. 恢復原狀 (移除 class，一切回到書本模式)
       document.body.classList.remove('generating-pdf');
-      container.innerHTML = ""; // 清空暫存區
+      container.innerHTML = ""; 
     }
 
     window.onload = renderPage;
