@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>手帳日記 - 完美隱私修復版</title>
+  <title>手帳日記 - 安全渲染修正版</title>
 
-  <!-- 引入 PDF 核心庫 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -25,7 +24,6 @@
       perspective: 1200px;
       width: 900px; height: 650px;
       position: relative;
-      transition: opacity 0.3s; 
     }
 
     .book {
@@ -42,8 +40,7 @@
       position: absolute; width: 50%; height: 100%;
       padding: 50px 30px 130px 30px; 
       background: white; overflow-y: auto;
-      line-height: 24px; 
-      font-size: 16px;
+      line-height: 24px; font-size: 16px;
       background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
       background-attachment: local;
       box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
@@ -62,20 +59,6 @@
       padding-bottom: 4px;
     }
 
-    .entry-actions { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 5px; }
-    .entry-actions button {
-      background: #4CAF50; color: white; border: none; padding: 4px 10px;
-      border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: bold;
-    }
-    .entry-actions .delete { background: #f44336; }
-
-    /* --- 翻頁動畫 --- */
-    .flip-sheet { position: absolute; top: 0; height: 100%; width: 50%; z-index: 2000; transform-style: preserve-3d; display: none; pointer-events: none; }
-    .flip-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; padding: 50px 30px; backface-visibility: hidden; background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px); }
-    .flip-sheet.rtl { right: 0; transform-origin: left center; }
-    .flip-sheet.rtl .flip-back { transform: rotateY(180deg); }
-    .flip-sheet.rtl.turn { transition: transform 0.8s ease-in-out; transform: rotateY(-180deg); }
-
     /* --- 手機端 RWD --- */
     @media (max-width: 768px) {
       .book-container { width: 95vw; height: 85vh; }
@@ -85,91 +68,79 @@
       .controls button { padding: 8px 5px; font-size: 12px; flex: 1; max-width: 70px; }
     }
 
-    /* --- 下方控制列 --- */
     .controls {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(255,255,255,0.98); padding: 12px 25px; border-radius: 40px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 5000;
       display: flex; align-items: center; gap: 10px;
-      transition: opacity 0.3s;
     }
     .controls button { background: #FF9800; border: none; color: white; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    /* --- 彈窗與心情選擇 --- */
+    /* --- 彈窗 --- */
     .entry-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: center; }
     .modal-content { background: #fffdf9; padding: 25px; border-radius: 25px; width: 90%; max-width: 500px; border: 3px solid #8B4513; position: relative; }
-    .mood-selector { position: absolute; top: 25px; right: 25px; display: flex; gap: 5px; }
     .mood-icon { font-size: 22px; cursor: pointer; filter: grayscale(1); }
     .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
     .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    /* --- PDF 與 隱私遮罩 (關鍵修正) --- */
+    /* --- PDF 終極修正樣式 --- */
     
-    /* 1. 隱私遮罩：固定在視窗上，層級最高 */
-    #privacy-mask {
-        position: fixed;
-        top: 0; 
-        left: 0; 
-        width: 100vw; 
-        height: 100vh; 
-        background: #333333; /* 完全不透明深色背景 */
-        z-index: 10000; /* 最高層級 */
-        display: none; /* 平時隱藏 */
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: white;
+    /* 1. 全球唯一的 PDF 內容容器 (在視窗最上方但被遮擋) */
+    #pdf-master-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 750px; /* 固定寬度，確保手機端不跑版 */
+      background: #ffffff;
+      z-index: 10; /* 底層 */
+      display: none; /* 平時不佔空間 */
+      padding: 40px;
     }
 
-    /* 2. PDF 暫存區：移到視窗最下方，避開遮罩重疊 (解決空白問題) */
-    #pdf-staging-area {
-        position: absolute; 
-        top: 5000px; /* 移到頁面非常下方，遠離當前視窗 */
-        left: 0; 
-        width: 800px; /* 固定寬度 */
-        background: white; 
-        z-index: 9999; /* 層級很高，但比遮罩低 */
-        display: none; /* 平時隱藏 */
-        padding: 20px;
-    }
-    
-    /* 生成 PDF 時的狀態 */
-    body.generating-pdf {
-        overflow-y: visible !important; /* 允許瀏覽器渲染長頁面 */
-        height: auto !important;
+    /* 2. 終極隱私遮罩 (完全不透明，與 APP 背景同色) */
+    #pdf-privacy-mask {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #f5f7fa; /* 這裡必須與 APP 背景顏色完全一致 */
+      z-index: 99999; /* 絕對最高層級 */
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
     }
 
-    body.generating-pdf #pdf-staging-area {
-        display: block !important; /* 顯示內容讓瀏覽器運算 */
+    /* 生成中狀態 */
+    body.is-generating {
+      overflow-y: auto !important;
+      background: #ffffff !important;
     }
-
-    body.generating-pdf #privacy-mask {
-        display: flex !important; /* 顯示遮罩擋住使用者視線 */
+    body.is-generating #pdf-master-container {
+      display: block !important;
     }
-
-    /* 隱藏原本介面，避免干擾 */
-    body.generating-pdf .book-container,
-    body.generating-pdf .controls {
-        display: none !important;
+    body.is-generating #pdf-privacy-mask {
+      display: flex !important;
+    }
+    body.is-generating .book-container, 
+    body.is-generating .controls {
+      visibility: hidden !important; /* 隱藏但保留空間，防止佈局塌陷 */
     }
   </style>
 </head>
 
 <body>
-  <!-- 書本主體 -->
-  <div class="book-container" id="mainBook">
+  <!-- 書本與控制列 -->
+  <div class="book-container" id="mainApp">
     <div class="book" id="book">
       <div class="page left" id="leftPage"></div>
       <div class="page right" id="rightPage"></div>
-      <div id="flipSheet" class="flip-sheet">
-        <div id="flipFront" class="flip-face"></div>
-        <div id="flipBack" class="flip-face"></div>
-      </div>
     </div>
   </div>
 
-  <!-- 控制按鈕 -->
-  <div class="controls" id="mainControls">
+  <div class="controls" id="controls">
     <button onclick="prevPage()">⬅️</button>
     <span id="pageCounter" style="font-size:12px; font-weight:bold;">封面</span>
     <button onclick="showNewEntryModal()">✏️新增</button>
@@ -186,90 +157,74 @@
     </div>
   </div>
 
-  <!-- 日記編輯彈窗 -->
+  <!-- 撰寫彈窗 -->
   <div id="entryModal" class="entry-modal">
     <div class="modal-content">
       <h3 id="modalTitle">撰寫日記</h3>
-      <div class="mood-selector">
-        <span class="mood-icon" onclick="selectMood(0)">😊</span>
-        <span class="mood-icon" onclick="selectMood(1)">😍</span>
-        <span class="mood-icon" onclick="selectMood(2)">😆</span>
-        <span class="mood-icon" onclick="selectMood(3)">😢</span>
-        <span class="mood-icon" onclick="selectMood(4)">😫</span>
-      </div>
-      <input id="modalDate" type="date" style="width:150px; padding:8px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
       <textarea id="modalEntry" placeholder="今天心情如何？"></textarea>
-      <div style="margin-top:10px; display:flex; align-items:center; gap:10px; justify-content:flex-end;">
-        <div id="previewBox" style="width:50px; height:50px; border:1px dashed #ccc; border-radius:5px; overflow:hidden;">
-          <img id="previewImg" style="width:100%; height:100%; object-fit:cover; display:none;">
-        </div>
-        <button onclick="document.getElementById('photoInput').click()" style="font-size:12px;">📷選照片</button>
-        <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handleImage(event)">
-      </div>
+      <input id="modalDate" type="date" style="margin-top:10px;">
       <div style="text-align:center; margin-top:20px;">
-        <button onclick="cancelEdit()" style="padding:8px 20px; border-radius:15px; border:1px solid #ccc; margin-right:10px;">取消</button>
+        <button onclick="cancelEdit()" style="margin-right:10px;">取消</button>
         <button onclick="saveEntry()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px; font-weight:bold;">儲存</button>
       </div>
     </div>
   </div>
 
-  <!-- 1. PDF 生成暫存區 (位於頁面最下方，平時隱藏) -->
-  <div id="pdf-staging-area"></div>
+  <!-- --- PDF 修正區塊 --- -->
+  <div id="pdf-master-container"></div>
   
-  <!-- 2. 隱私安全遮罩 (Loading 畫面，固定於視窗) -->
-  <div id="privacy-mask">
-      <div style="font-size:24px; font-weight:bold; margin-bottom:15px;">🔒 加密處理中</div>
-      <div style="font-size:14px; color:#ccc;">正在生成受保護的 PDF 檔案...</div>
+  <div id="pdf-privacy-mask">
+      <div style="background: white; padding: 40px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+          <div style="font-size: 50px; margin-bottom: 20px;">🔒</div>
+          <div style="font-size: 20px; font-weight: bold; color: #8B4513; margin-bottom: 10px;">加密檔案生成中</div>
+          <div style="color: #666; font-size: 14px;">為了保護隱私，預覽畫面已暫時遮蓋...</div>
+          <div style="margin-top: 25px; width: 200px; height: 4px; background: #eee; border-radius: 2px; overflow: hidden; margin-left: auto; margin-right: auto;">
+              <div style="width: 50%; height: 100%; background: #FF9800; animation: loading 2s infinite ease-in-out;"></div>
+          </div>
+      </div>
   </div>
+
+  <style>
+    @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(200%); }
+    }
+  </style>
 
   <script>
     const STORAGE_KEY = 'handbookEntries';
     const MOODS = ['😊', '😍', '😆', '😢', '😫'];
     const DIARY_PASSWORD = '0000';
     let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = "", currentMoodIdx = -1, isAuthenticated = false, isFlipping = false;
+    let currentPage = 0, viewMode = 'cover', editingIndex = -1, isAuthenticated = false;
 
+    // --- 初始化渲染 (簡化原有邏輯) ---
     function renderPage(){
       const left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
       if (viewMode === 'cover'){
         left.className = 'page left cover';
-        left.innerHTML = `<h1>我的手帳</h1><p style="margin-top:20px; font-size:12px;">點擊右箭頭開始</p>`;
+        left.innerHTML = `<h1>我的手帳</h1><p style="margin-top:20px;">點擊右箭頭開始</p>`;
         right.style.display = 'none';
       } else {
         left.className = 'page left';
         left.innerHTML = getPageHtml(currentPage);
-        if (window.innerWidth <= 768) {
-          right.style.display = 'none';
-        } else {
-          right.style.display = 'block';
-          right.innerHTML = getPageHtml(currentPage + 1);
-        }
+        right.style.display = window.innerWidth <= 768 ? 'none' : 'block';
+        if (right.style.display === 'block') right.innerHTML = getPageHtml(currentPage + 1);
       }
       document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '封面' : `${currentPage+1} / ${entries.length}`;
     }
 
-    function getPageHtml(idx, hideActions = false){
+    function getPageHtml(idx){
       if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc;">空白頁</div>`;
       const item = entries[idx];
-      const mood = item.mood !== undefined && item.mood !== -1 ? MOODS[item.mood] : '';
-      const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px;">` : '';
-      const actions = hideActions ? '' : `<div class="entry-actions"><button onclick="editEntry(${idx})">編輯</button><button class="delete" onclick="deleteEntry(${idx})">刪除</button></div>`;
-      return `${actions}<div class="page-header"><span>${item.date.replaceAll('-','/')}</span><span>${mood}</span></div><div style="padding-top:4px;">${item.text}</div>${imgHtml}`;
+      return `<div class="page-header"><span>${item.date}</span></div><div style="padding-top:20px;">${item.text}</div>`;
     }
 
-    function flipTo(targetIdx) {
-      if(isFlipping) return;
-      isFlipping = true;
-      const sheet = document.getElementById('flipSheet');
-      const front = document.getElementById('flipFront'), back = document.getElementById('flipBack');
-      front.innerHTML = getPageHtml(currentPage, true);
-      back.innerHTML = getPageHtml(targetIdx, true);
-      sheet.style.display = 'block';
-      sheet.classList.add('rtl', 'turn');
-      setTimeout(() => {
-        sheet.classList.remove('turn'); sheet.style.display = 'none';
-        currentPage = targetIdx; renderPage(); isFlipping = false;
-      }, 800);
+    function checkPassword(){
+      if(document.getElementById('passwordInput').value === DIARY_PASSWORD){
+        isAuthenticated = true; document.getElementById('passwordModal').style.display = 'none';
+        viewMode = 'content'; renderPage();
+      } else { alert("密碼錯誤！"); }
     }
 
     function nextPage(){
@@ -278,7 +233,7 @@
         viewMode = 'content'; renderPage(); return;
       }
       const step = window.innerWidth <= 768 ? 1 : 2;
-      if(currentPage + step < entries.length) flipTo(currentPage + step);
+      if(currentPage + step < entries.length) { currentPage += step; renderPage(); }
     }
 
     function prevPage(){
@@ -287,114 +242,77 @@
       else { currentPage -= step; renderPage(); }
     }
 
-    function checkPassword(){
-      if(document.getElementById('passwordInput').value === DIARY_PASSWORD){
-        isAuthenticated = true; document.getElementById('passwordModal').style.display = 'none';
-        viewMode = 'content'; currentPage = 0; renderPage();
-      } else { alert("密碼錯誤！"); }
-    }
-
-    function selectMood(idx) {
-      currentMoodIdx = idx;
-      document.querySelectorAll('.mood-icon').forEach((el, i) => el.classList.toggle('selected', i === idx));
-    }
-
-    function showNewEntryModal(){
-      editingIndex = -1; currentImgBase64 = ""; currentMoodIdx = -1;
-      document.getElementById('modalEntry').value = "";
-      document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
-      document.getElementById('previewImg').style.display = 'none';
-      document.querySelectorAll('.mood-icon').forEach(el => el.classList.remove('selected'));
-      document.getElementById('entryModal').style.display = 'flex';
-    }
-
-    function handleImage(e) {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          currentImgBase64 = ev.target.result;
-          document.getElementById('previewImg').src = currentImgBase64;
-          document.getElementById('previewImg').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      }
+    function showNewEntryModal() {
+        document.getElementById('modalEntry').value = "";
+        document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('entryModal').style.display = 'flex';
     }
 
     function saveEntry(){
-      const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
-      if(!text) return;
-      const data = { text, date, image: currentImgBase64, mood: currentMoodIdx };
-      if(editingIndex === -1) entries.unshift(data); else entries[editingIndex] = data;
-      entries.sort((a,b) => new Date(b.date) - new Date(a.date));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-      document.getElementById('entryModal').style.display = 'none';
-      renderPage();
+        const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
+        if(!text) return;
+        entries.unshift({ text, date });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        document.getElementById('entryModal').style.display = 'none';
+        renderPage();
     }
 
-    function editEntry(idx){
-      editingIndex = idx; const item = entries[idx];
-      document.getElementById('modalEntry').value = item.text;
-      document.getElementById('modalDate').value = item.date;
-      selectMood(item.mood);
-      if(item.image) {
-        currentImgBase64 = item.image;
-        document.getElementById('previewImg').src = item.image;
-        document.getElementById('previewImg').style.display = 'block';
-      } else {
-        document.getElementById('previewImg').style.display = 'none';
-      }
-      document.getElementById('entryModal').style.display = 'flex';
-    }
+    function cancelEdit() { document.getElementById('entryModal').style.display = 'none'; }
 
-    function deleteEntry(idx){ if(confirm('確定刪除？')){ entries.splice(idx,1); localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); renderPage(); } }
-    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
-
-    // --- 最終修正版 PDF 匯出 (Off-screen Rendering) ---
-    async function exportPDF(){
-      const container = document.getElementById('pdf-staging-area');
+    // --- 終極修正：PDF 匯出邏輯 ---
+    async function exportPDF() {
+      const container = document.getElementById('pdf-master-container');
       
-      // 1. 填充內容
-      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px; font-size:32px; padding-top:20px;">我的手帳日記</h1>`;
+      // 1. 生成內容
+      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:40px;">我的手帳日記</h1>`;
       entries.forEach(item => {
-        const mood = item.mood !== -1 && item.mood !== undefined ? MOODS[item.mood] : '';
-        const img = item.image ? `<img src="${item.image}" style="width:100%; border-radius:10px; margin-top:15px;">` : '';
         container.innerHTML += `
-          <div style="padding:30px; border-bottom:2px solid #D4AF37; page-break-inside:avoid; background:white; margin-bottom:10px;">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:22px; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
-              <span style="color:#555;">${item.date.replaceAll('-','/')}</span><span>${mood}</span>
-            </div>
-            <div style="font-size:18px; line-height:1.6; white-space:pre-wrap; color:#222; min-height:60px;">${item.text}</div>
-            ${img}
+          <div style="padding:30px; border-bottom:2px solid #D4AF37; page-break-inside:avoid; background:white;">
+            <div style="font-weight:bold; font-size:20px; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">${item.date}</div>
+            <div style="font-size:16px; line-height:1.6; white-space:pre-wrap; color:#333;">${item.text}</div>
           </div>`;
       });
-      container.innerHTML += `<div style="text-align:center; padding:20px; color:#999; font-size:12px;">Generated by My Diary App</div>`;
 
-      // 2. 啟動生成模式
-      // CSS 會將 #privacy-mask 顯示在 (0,0) 擋住視窗
-      // CSS 會將 #pdf-staging-area 顯示在 (0, 5000) 遠離視窗
-      document.body.classList.add('generating-pdf');
+      // 2. 進入「生成模式」
+      // 這會讓內容顯示在頁面頂端 (0,0)，但上面會蓋著一個與背景同色的隱私遮罩
+      document.body.classList.add('is-generating');
       
-      // 3. 確保瀏覽器完成排版 (給予充裕時間)
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // 3. 關鍵：給予手機瀏覽器充足的渲染時間 (解決空白頁核心)
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       const opt = {
         margin: 10,
-        filename: 'My_Diary_Secured.pdf',
+        filename: 'My_Diary_Private.pdf',
         image: { type: 'jpeg', quality: 0.95 },
-        // 強制視窗寬度與捲軸位置，確保能抓到下方的內容
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', encryption: { userPassword: DIARY_PASSWORD, ownerPassword: DIARY_PASSWORD } }
+        // 指定 windowWidth 確保 html2canvas 以標準寬度擷取，不被手機螢幕寬度影響
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            scrollY: 0, 
+            windowWidth: 800,
+            logging: false 
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait', 
+            encryption: { 
+                userPassword: DIARY_PASSWORD, 
+                ownerPassword: DIARY_PASSWORD,
+                userPermissions: ["print", "modify", "copy", "annot-cards"]
+            } 
+        }
       };
 
       try {
+        // 直接從 container 物件抓取，它現在正位於視窗頂層(雖然被擋住)
         await html2pdf().set(opt).from(container).save();
       } catch (err) {
-        alert("匯出失敗：" + err.message);
+        alert("匯出失敗，請檢查權限或空間");
       }
 
       // 4. 恢復原狀
-      document.body.classList.remove('generating-pdf');
+      document.body.classList.remove('is-generating');
       container.innerHTML = ""; 
     }
 
