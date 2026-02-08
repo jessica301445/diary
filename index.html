@@ -99,8 +99,17 @@
     .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
     .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    /* PDF 暫存容器 */
-    #export-container { display: none; }
+    /* PDF 匯出隱藏區塊 - 修改樣式以避免被瀏覽器忽略渲染 */
+    #pdf-hidden-area {
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 800px; 
+      z-index: -9999; 
+      background: #ffffff; /* 確保背景為白色 */
+      opacity: 0; /* 平時隱藏 */
+      pointer-events: none;
+    }
   </style>
 </head>
 
@@ -158,7 +167,7 @@
     </div>
   </div>
 
-  <div id="pdf-hidden-area" style="position: absolute; left: -9999px; width: 800px;"></div>
+  <div id="pdf-hidden-area"></div>
 
   <script>
     const STORAGE_KEY = 'handbookEntries';
@@ -288,38 +297,58 @@
     function deleteEntry(idx){ if(confirm('確定刪除？')){ entries.splice(idx,1); localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); renderPage(); } }
     function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
 
-    // 強化的 PDF 匯出邏輯，專門解決跑版問題
+    // 修正版 PDF 匯出邏輯
     async function exportPDF(){
+      // 1. 建立並顯示全螢幕 Loading 遮罩
+      const mask = document.createElement('div');
+      mask.id = 'export-mask';
+      mask.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.98); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; transition: opacity 0.3s;";
+      mask.innerHTML = '<div style="font-size:24px; color:#8B4513; font-weight:bold; margin-bottom:15px;">正在匯出 PDF...</div><div style="font-size:14px; color:#666;">加密檔案生成中，請稍候</div>';
+      document.body.appendChild(mask);
+
       const container = document.getElementById('pdf-hidden-area');
-      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px;">我的手帳日記</h1>`;
+      
+      // 2. 將容器暫時移入視口 (但位於遮罩下方)，並確保樣式正確
+      // 關鍵修正：opacity 設為 1，z-index 設為比遮罩低但比背景高，確保瀏覽器渲染它
+      container.style.cssText = "position: fixed; top: 0; left: 0; width: 800px; z-index: 9000; opacity: 1; background: #ffffff; pointer-events: none;";
+
+      container.innerHTML = `<h1 style="text-align:center; color:#8B4513; margin-bottom:30px; padding-top:20px;">我的手帳日記</h1>`;
       
       entries.forEach(item => {
         const mood = item.mood !== -1 && item.mood !== undefined ? MOODS[item.mood] : '';
         const img = item.image ? `<img src="${item.image}" style="width:100%; border-radius:10px; margin-top:15px;">` : '';
         container.innerHTML += `
-          <div style="padding:30px; border-bottom:2px solid #D4AF37; page-break-inside:avoid; font-family: 'Microsoft JhengHei', sans-serif;">
+          <div style="padding:30px; border-bottom:2px solid #D4AF37; page-break-inside:avoid; font-family: 'Microsoft JhengHei', sans-serif; background: #fff;">
             <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:22px; margin-bottom:10px;">
               <span>${item.date.replaceAll('-','/')}</span><span>${mood}</span>
             </div>
-            <div style="font-size:18px; line-height:1.6; white-space:pre-wrap;">${item.text}</div>
+            <div style="font-size:18px; line-height:1.6; white-space:pre-wrap; color:#333;">${item.text}</div>
             ${img}
           </div>`;
       });
+
+      // 3. 等待瀏覽器渲染與圖片載入 (非常重要)
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       const opt = {
         margin: 15,
         filename: 'My-Diary.pdf',
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, // 固定寬度避免手機螢幕影響
+        html2canvas: { scale: 2, useCORS: true, windowWidth: 800, scrollY: 0 }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', encryption: { userPassword: DIARY_PASSWORD, ownerPassword: DIARY_PASSWORD } }
       };
 
       try {
         await html2pdf().set(opt).from(container).save();
       } catch (err) {
+        console.error(err);
         alert("匯出失敗，請再試一次");
       }
+
+      // 4. 清理：移除遮罩，隱藏容器
+      document.body.removeChild(mask);
       container.innerHTML = "";
+      container.style.cssText = "position: fixed; top: 0; left: 0; width: 800px; z-index: -9999; opacity: 0; pointer-events: none;";
     }
 
     window.onload = renderPage;
