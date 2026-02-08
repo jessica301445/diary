@@ -2,37 +2,33 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>手帳日記 - 手機優化版</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>手帳日記 - 手機完美對齊版</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
-    /* 核心樣式 - 保留原版風格 */
+    /* 核心基礎樣式 */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
 
     body {
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      font-family: Georgia, "Microsoft JhengHei", "微軟正黑體", serif;
+      font-family: Georgia, "Microsoft JhengHei", serif;
       color: #5D4037;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      display: flex; justify-content: center; align-items: center;
     }
 
     .book-container {
       perspective: 1200px;
-      width: 900px;
-      height: 650px;
+      width: 900px; height: 650px;
       position: relative;
     }
 
     .book {
       width: 100%; height: 100%;
       position: relative;
-      transform-style: preserve-3d;
       background: #8B4513;
       border-radius: 20px;
       box-shadow: 0 40px 80px rgba(0,0,0,0.5);
@@ -44,12 +40,16 @@
       z-index: 50; transform: translateX(-50%);
     }
 
+    /* 關鍵：精準對齊隔線樣式 */
     .page {
       position: absolute; width: 50%; height: 100%;
-      padding: 50px 45px; padding-bottom: 130px;
+      padding: 40px 30px; 
       background: white; overflow-y: auto;
-      line-height: 1.8; font-size: 16px;
-      background-image: repeating-linear-gradient(0deg, transparent, transparent 24px, #f5f5f5 24px, #f5f5f5 25px);
+      /* 設定 28px 為一行高度 */
+      line-height: 28px; 
+      font-size: 16px;
+      background-image: repeating-linear-gradient(0deg, #f5f5f5 0px, #f5f5f5 1px, transparent 1px, transparent 28px);
+      background-attachment: local;
       box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
       word-wrap: break-word;
     }
@@ -58,24 +58,26 @@
     .page.right { right: 0; border-radius: 0 20px 20px 0; }
 
     .page-header {
-      display: flex; justify-content: space-between; align-items: center;
-      font-weight: bold; color: #5D4037; font-size: 20px;
-      margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #D4AF37;
+      line-height: 1.2;
+      margin-bottom: 16px; /* 剛好空出兩行格線的高度感 */
+      padding-bottom: 8px;
+      border-bottom: 3px solid #D4AF37;
+      font-weight: bold; font-size: 20px;
     }
 
-    .entry-actions { position: absolute; top: 15px; right: 15px; z-index: 100; }
+    .entry-actions { position: absolute; top: 10px; right: 10px; z-index: 100; display: flex; gap: 5px; }
     .entry-actions button {
-      background: #4CAF50; color: white; border: none; padding: 4px 10px;
-      margin-left: 5px; border-radius: 12px; cursor: pointer; font-size: 12px;
+      background: #4CAF50; color: white; border: none; padding: 4px 8px;
+      border-radius: 10px; cursor: pointer; font-size: 12px;
     }
     .entry-actions .delete { background: #f44336; }
 
-    /* 控制列 - 電腦版 */
+    /* 控制列 RWD */
     .controls {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(255,255,255,0.95); padding: 10px 20px; border-radius: 40px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 5000;
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 10px; white-space: nowrap;
     }
 
     .controls button {
@@ -83,40 +85,49 @@
       padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px;
     }
 
-    /* === 手機端優化修正 === */
+    /* 手機端樣式修正 */
     @media (max-width: 768px) {
-      .book-container { width: 100vw; height: 90vh; }
-      .book-spine { display: none !important; } /* 隱藏書脊 */
-      .page { width: 100% !important; border-radius: 20px !important; padding: 30px 20px !important; }
-      .page.right { display: none !important; } /* 僅顯示單頁 */
+      .book-container { width: 100vw; height: 100vh; }
+      .book-spine { display: none !important; }
+      .page { width: 100% !important; border-radius: 0 !important; padding: 25px 20px 100px 20px !important; }
+      .page.right { display: none !important; }
       
       .controls {
-        bottom: 0; width: 100%; border-radius: 0; height: 10%; /* 佔比 10% */
+        bottom: 0; width: 100%; border-radius: 0; height: 10%;
         padding: 5px; gap: 5px; justify-content: space-around;
       }
-      .controls button { padding: 6px 10px; font-size: 12px; flex: 1; max-width: 80px; text-align: center; }
-      #pageCounter { font-size: 12px; min-width: 60px; text-align: center; }
-      
-      .page-header { font-size: 18px; }
+      .controls button { padding: 6px 8px; font-size: 12px; flex: 1; max-width: 75px; }
+      #pageCounter { font-size: 11px; min-width: 50px; text-align: center; }
+
+      .modal-content { width: 95%; padding: 20px; }
+      .photo-upload-container { transform: scale(0.85); margin-top: 5px; }
     }
 
     /* 彈窗樣式 */
     .entry-modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.7); z-index: 6000; justify-content: center; align-items: center;
+      background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: center;
     }
     .modal-content {
-      background: #fffdf9; padding: 25px; border-radius: 20px;
-      width: 90%; max-width: 500px; border: 3px solid #8B4513;
+      background: #fffdf9; padding: 25px; border-radius: 25px;
+      width: 90%; max-width: 500px; border: 3px solid #8B4513; position: relative;
     }
-    .modal-content textarea { width: 100%; height: 150px; margin: 10px 0; padding: 10px; }
+    .modal-content textarea {
+      width: 100%; height: 150px; margin-top: 10px; padding: 12px;
+      border: 2px solid #ddd; border-radius: 12px; font-family: inherit; font-size: 16px;
+    }
+    .photo-upload-container { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+    .image-preview { width: 60px; height: 60px; border: 2px dashed #D4AF37; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #export-container { position: absolute; left: -9999px; top: -9999px; width: 210mm; }
   </style>
 </head>
 
 <body>
   <div class="book-container">
     <div class="book" id="book">
-      <div class="book-spine" id="spine"></div>
+      <div class="book-spine"></div>
       <div class="page left" id="leftPage"></div>
       <div class="page right" id="rightPage"></div>
     </div>
@@ -130,33 +141,35 @@
     <button onclick="nextPage()">下一頁➡️</button>
   </div>
 
-  <div id="passwordModal" class="entry-modal">
-    <div class="modal-content" style="max-width: 300px; text-align: center;">
-      <h3>請輸入密碼</h3>
-      <input type="password" id="passwordInput" style="width:100%; padding:10px; margin:15px 0; text-align:center;">
-      <button onclick="checkPassword()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px;">確認</button>
-    </div>
-  </div>
-
   <div id="entryModal" class="entry-modal">
     <div class="modal-content">
       <h3 id="modalTitle">撰寫手帳</h3>
-      <input id="modalDate" type="date" style="width:100%; padding:8px; margin-top:10px;">
-      <textarea id="modalEntry" placeholder="今天發生了什麼事？"></textarea>
-      <div style="text-align: center;">
-        <button onclick="cancelEdit()" style="padding:8px 20px; margin-right:10px;">取消</button>
-        <button onclick="saveEntry()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px;">儲存</button>
+      <input id="modalDate" type="date" style="width:100%; padding:10px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
+      <textarea id="modalEntry" placeholder="今天的心情如何？"></textarea>
+      
+      <div class="photo-upload-container">
+        <span style="font-size: 12px;">插入照片：</span>
+        <div class="image-preview" onclick="document.getElementById('photoInput').click()">
+          <span id="previewText" style="color:#D4AF37; font-size:20px;">+</span>
+          <img id="previewImg" style="display:none;">
+        </div>
+        <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handleImage(event)">
+      </div>
+
+      <div style="text-align: center; margin-top: 15px;">
+        <button onclick="cancelEdit()" style="padding:8px 20px; margin-right:10px; border-radius:15px; border:1px solid #ccc;">取消</button>
+        <button onclick="saveEntry()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px; font-weight:bold;">儲存日記</button>
       </div>
     </div>
   </div>
 
+  <div id="export-container"><div id="pdf-content"></div></div>
+
   <script>
     const STORAGE_KEY = 'handbookEntries';
-    const DIARY_PASSWORD = '0000'; 
     let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let currentPage = 0, viewMode = 'cover', isAuthenticated = false;
+    let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = "";
 
-    // 判斷是否為手機端
     const isMobile = () => window.innerWidth <= 768;
 
     function renderPage(){
@@ -164,15 +177,12 @@
       const mobile = isMobile();
       
       if (viewMode === 'cover'){
-        book.style.background = '#8B4513';
         left.className = 'page left cover';
-        left.innerHTML = `<div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;"><h1>手帳日記</h1><p>My Diary</p></div>`;
+        left.innerHTML = `<div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; background:#8B4513; border-radius:20px;"><h1>我的日記</h1><p>My Diary</p></div>`;
         right.style.display = 'none';
       } else {
-        book.style.background = 'white';
         left.className = 'page left';
         left.innerHTML = getPageHtml(currentPage);
-        
         if (mobile) {
           right.style.display = 'none';
         } else {
@@ -184,63 +194,104 @@
     }
 
     function getPageHtml(idx){
-      if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; margin-top:100px; color:#ccc;">空白頁</div>`;
+      if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc; font-style:italic;">寫點什麼吧...</div>`;
       const item = entries[idx];
+      const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">` : '';
       return `
         <div class="entry-actions">
           <button onclick="editEntry(${idx})">編輯</button>
           <button class="delete" onclick="deleteEntry(${idx})">刪除</button>
         </div>
-        <div class="page-header"><span>${item.date.replaceAll('-','/')}</span></div>
-        <div style="white-space:pre-wrap;">${item.text}</div>
+        <div class="page-header">${item.date}</div>
+        <div style="min-height:200px;">${item.text}</div>
+        ${imgHtml}
       `;
     }
 
-    function nextPage(){
-      if(viewMode === 'cover') {
-        if(!isAuthenticated) { document.getElementById('passwordModal').style.display='flex'; return; }
-        viewMode = 'content'; currentPage = 0; renderPage(); return;
-      }
-      const step = isMobile() ? 1 : 2;
-      if(currentPage + step < entries.length) { currentPage += step; renderPage(); }
-    }
-
-    function prevPage(){
-      const step = isMobile() ? 1 : 2;
-      if(currentPage - step < 0) { viewMode = 'cover'; renderPage(); return; }
-      currentPage -= step; renderPage();
-    }
-
-    function updateNavButtons(){
-      const counter = document.getElementById('pageCounter');
-      if(viewMode === 'cover') counter.textContent = '封面';
-      else counter.textContent = isMobile() ? `${currentPage + 1}/${entries.length}` : `${currentPage + 1}-${Math.min(currentPage + 2, entries.length)}/${entries.length}`;
-    }
-
-    function checkPassword(){
-      if(document.getElementById('passwordInput').value === DIARY_PASSWORD){
-        isAuthenticated = true; document.getElementById('passwordModal').style.display='none';
-        viewMode = 'content'; renderPage();
-      } else { alert("密碼錯誤"); }
-    }
-
     function showNewEntryModal(){
-        document.getElementById('modalEntry').value = "";
-        document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
-        document.getElementById('entryModal').style.display = 'flex';
+      editingIndex = -1; currentImgBase64 = "";
+      document.getElementById('modalTitle').textContent = '撰寫新日記';
+      document.getElementById('modalEntry').value = "";
+      document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('previewImg').style.display = 'none';
+      document.getElementById('previewText').style.display = 'block';
+      document.getElementById('entryModal').style.display = 'flex';
+    }
+
+    function editEntry(idx){
+      editingIndex = idx;
+      const item = entries[idx];
+      document.getElementById('modalTitle').textContent = '編輯日記';
+      document.getElementById('modalEntry').value = item.text;
+      document.getElementById('modalDate').value = item.date;
+      if(item.image) {
+        currentImgBase64 = item.image;
+        document.getElementById('previewImg').src = item.image;
+        document.getElementById('previewImg').style.display = 'block';
+        document.getElementById('previewText').style.display = 'none';
+      } else {
+        currentImgBase64 = "";
+        document.getElementById('previewImg').style.display = 'none';
+        document.getElementById('previewText').style.display = 'block';
+      }
+      document.getElementById('entryModal').style.display = 'flex';
+    }
+
+    function handleImage(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          currentImgBase64 = event.target.result;
+          document.getElementById('previewImg').src = currentImgBase64;
+          document.getElementById('previewImg').style.display = 'block';
+          document.getElementById('previewText').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
     }
 
     function saveEntry(){
       const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
-      if(!text) return;
-      entries.unshift({text, date});
+      if(!text) return alert("請輸入內容");
+      const data = { text, date, image: currentImgBase64 };
+      if(editingIndex === -1) entries.unshift(data); else entries[editingIndex] = data;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
       document.getElementById('entryModal').style.display = 'none';
       renderPage();
     }
 
-    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
     function deleteEntry(idx){ if(confirm('確定刪除？')){ entries.splice(idx,1); localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); renderPage(); } }
+    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
+    
+    function nextPage(){
+      if(viewMode === 'cover') { viewMode = 'content'; currentPage = 0; }
+      else { const step = isMobile() ? 1 : 2; if(currentPage + step < entries.length) currentPage += step; }
+      renderPage();
+    }
+    function prevPage(){
+      const step = isMobile() ? 1 : 2;
+      if(currentPage - step < 0) viewMode = 'cover'; else currentPage -= step;
+      renderPage();
+    }
+    function updateNavButtons(){
+      const counter = document.getElementById('pageCounter');
+      counter.textContent = viewMode === 'cover' ? '封面' : `${currentPage+1}/${entries.length}`;
+    }
+
+    async function exportPDF(){
+      if(!entries.length) return alert('無內容');
+      const content = document.getElementById('pdf-content');
+      content.innerHTML = entries.map(item => `
+        <div style="padding:20px; border-bottom:1px solid #eee;">
+          <h3>${item.date}</h3>
+          <p>${item.text}</p>
+          ${item.image ? `<img src="${item.image}" style="width:200px;">` : ''}
+        </div>
+      `).join('');
+      const opt = { margin: 10, filename: 'diary.pdf', html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4' } };
+      html2pdf().set(opt).from(content).save();
+    }
 
     window.onload = renderPage;
     window.onresize = renderPage;
