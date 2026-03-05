@@ -55,118 +55,123 @@
     .page.right { right: 0; border-radius: 0 20px 20px 0; }
     .page.cover { background: #8B4513; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-    .page img { max-width: 100%; border-radius: 8px; margin-top: 10px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 5px; color: #777; }
-
-    /* 核心：翻頁動畫層 */
-    .flip-sheet {
-      position: absolute; width: 50%; height: 100%;
-      right: 0; top: 0;
-      transform-style: preserve-3d;
-      transform-origin: left center;
-      transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
-      display: none;
-      z-index: 5000;
-    }
-    .flip-sheet.turn { transform: rotateY(-180deg); }
-
-    .flip-face {
-      position: absolute; width: 100%; height: 100%;
-      backface-visibility: hidden;
-      padding: 50px 30px 130px 30px;
-      background: white; overflow-y: auto;
-      line-height: 24px; font-size: 16px;
-      background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
-      background-attachment: local;
-      box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
-      word-wrap: break-word;
+    .page-header {
+      line-height: 24px; height: 48px;
+      margin-bottom: 0px;
+      border-bottom: 2px solid #D4AF37; font-weight: bold; font-size: 20px;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding-bottom: 4px;
     }
 
-    #flipFront { border-radius: 0 20px 20px 0; }
-    #flipBack { transform: rotateY(180deg); border-radius: 0 20px 20px 0; }
+    .entry-actions { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 5px; }
+    .entry-actions button {
+      background: #4CAF50; color: white; border: none; padding: 4px 10px;
+      border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: bold;
+    }
+    .entry-actions .delete { background: #f44336; }
+
+    /* 翻頁動畫 */
+    .flip-sheet { position: absolute; top: 0; height: 100%; width: 50%; z-index: 2000; transform-style: preserve-3d; display: none; pointer-events: none; }
+    .flip-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; padding: 50px 30px; backface-visibility: hidden; background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px); }
+    .flip-sheet.rtl { right: 0; transform-origin: left center; }
+    .flip-sheet.rtl .flip-back { transform: rotateY(180deg); }
+    .flip-sheet.rtl.turn { transition: transform 0.8s ease-in-out; transform: rotateY(-180deg); }
+
+    /* 手機端適配 */
+    @media (max-width: 768px) {
+      .book-container { width: 95vw; height: 85vh; }
+      .page { width: 100% !important; border-radius: 20px !important; }
+      .page.right { display: none !important; }
+      .controls { bottom: 0; width: 100%; border-radius: 0; justify-content: space-around; padding: 10px 5px; height: 80px; }
+      .controls button { padding: 8px 5px; font-size: 12px; flex: 1; max-width: 70px; }
+    }
 
     .controls {
-      position: fixed;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      bottom: 0; width: 100%; border-radius: 0; justify-content: space-around; padding: 10px 5px; height: 80px;
-      background: rgba(255,255,255,0.95);
-      box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.98); padding: 12px 25px; border-radius: 40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 5000;
+      display: flex; align-items: center; gap: 10px;
     }
+    .controls button { background: #FF9800; border: none; color: white; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
 
-    .controls button {
-      background: #8B4513; color: white; border: none; border-radius: 50px;
-      padding: 12px 18px; font-size: 14px; cursor: pointer;
-      font-weight: bold; font-family: Georgia, "Microsoft JhengHei", serif;
-      transition: background 0.2s;
-      padding: 8px 5px; font-size: 12px; flex: 1; max-width: 70px;
-    }
-    .controls button:hover { background: #6D3611; }
-
-    .entry-actions { position: absolute; top: 55px; right: 35px; display: flex; gap: 5px; }
-    .entry-actions button { padding: 3px 8px; font-size: 11px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; }
-    .entry-actions button.delete { color: #e53935; border-color: #e53935; }
-
+    /* 彈窗與心情 */
     .entry-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: center; }
-    .modal-content { background: white; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-    .modal-content h3 { margin-bottom: 15px; color: #5D4037; }
-    .modal-content textarea { width: 100%; height: 180px; padding: 15px; margin-top: 10px; border-radius: 10px; border: 1px solid #ddd; font-family: Georgia, "Microsoft JhengHei", serif; resize: vertical; font-size: 14px; line-height: 24px; }
+    .modal-content { background: #fffdf9; padding: 25px; border-radius: 25px; width: 90%; max-width: 500px; border: 3px solid #8B4513; position: relative; }
+    .mood-selector { position: absolute; top: 25px; right: 25px; display: flex; gap: 5px; }
+    .mood-icon { font-size: 22px; cursor: pointer; filter: grayscale(1); }
+    .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
+    .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
 
-    .mood-selector { display: flex; gap: 10px; margin: 10px 0; justify-content: center; }
-    .mood-icon { font-size: 28px; cursor: pointer; opacity: 0.4; transition: all 0.2s; }
-    .mood-icon:hover, .mood-icon.selected { opacity: 1; transform: scale(1.3); }
+    /* PDF 暫存區：不移出視窗(避免 iOS 不渲染)，但使用者看不到 */
+    #pdf-hidden-area{
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 800px;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
 
-    #privacy-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); color: white; display: none; z-index: 9999; justify-content: center; align-items: center; flex-direction: column; font-size: 18px; }
+    .pdf-page{
+      width: 800px;
+      min-height: 1125px; /* 約 A4 比例 */
+      padding: 40px 40px 30px 40px;
+      background: #fff;
+      font-family: "Microsoft JhengHei", sans-serif;
+    }
+    .pdf-title{
+      text-align:center;
+      color:#8B4513;
+      margin-bottom: 24px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .pdf-entry{
+      padding: 18px 0;
+      border-bottom: 2px solid #D4AF37;
+      page-break-inside: avoid;
+    }
+    .pdf-entry-header{
+      display:flex;
+      justify-content:space-between;
+      font-weight:700;
+      font-size:18px;
+      margin-bottom:10px;
+      color:#333;
+    }
+    .pdf-entry-text{
+      font-size:16px;
+      line-height:1.65;
+      white-space:pre-wrap;
+      color:#222;
+    }
+    .pdf-entry img{
+      width:100%;
+      border-radius:10px;
+      margin-top:12px;
+      display:block;
+    }
 
-    /* 全部刪除確認視窗樣式 */
-    .delete-modal-content {
-      background: white;
-      border-radius: 20px;
-      padding: 30px 25px;
-      max-width: 340px;
-      width: 90%;
-      text-align: center;
-    }
-    .delete-modal-content h3 {
-      color: #5D4037;
-      font-size: 16px;
-      line-height: 1.7;
-      margin-bottom: 25px;
-    }
-    .delete-modal-btns {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-    }
-    .delete-modal-btns button {
-      flex: 1;
-      padding: 12px 8px;
-      border-radius: 20px;
-      border: none;
-      font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-      font-family: Georgia, "Microsoft JhengHei", serif;
-    }
-    .btn-cancel-delete { background: #e0e0e0; color: #555; }
-    .btn-confirm-delete { background: #e53935; color: white; }
-
-    @media (max-width: 768px) {
-      .book-container { width: 95vw; height: 70vh; }
-      .page { width: 100%; padding: 40px 25px 100px 25px; }
-      .page.left { border-radius: 20px; }
-      .page.right { display: none; }
-      .flip-sheet { width: 100%; }
-      .flip-face { padding: 40px 25px 100px 25px; }
-      #flipFront, #flipBack { border-radius: 20px; }
-      .controls { gap: 5px; }
-      .controls button { padding: 8px 5px; font-size: 12px; flex: 1; max-width: 70px; }
+    /* 生成 PDF 遮罩：使用者永遠只看到這層 */
+    #privacy-mask{
+      display:none;
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,0.85);
+      z-index: 9999;
+      color:#fff;
+      font-weight:700;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      padding: 24px;
     }
   </style>
 </head>
-<body>
 
+<body>
   <div class="book-container">
     <div class="book" id="book">
       <div class="page left" id="leftPage"></div>
@@ -183,7 +188,6 @@
     <span id="pageCounter" style="font-size:12px; font-weight:bold;">封面</span>
     <button onclick="showNewEntryModal()">✏️新增</button>
     <button onclick="exportPDF()">📄PDF</button>
-    <button onclick="showDeleteAllModal()" style="color:#e53935;">🗑️全部刪除</button>
     <button onclick="nextPage()">➡️</button>
   </div>
 
@@ -221,20 +225,13 @@
     </div>
   </div>
 
-  <!-- 全部刪除確認視窗 -->
-  <div id="deleteAllModal" class="entry-modal">
-    <div class="delete-modal-content">
-      <h3>請確認本月日記已備份完成</h3>
-      <div class="delete-modal-btns">
-        <button class="btn-cancel-delete" onclick="closeDeleteAllModal()">還沒好</button>
-        <button class="btn-confirm-delete" onclick="deleteAllEntries()">備份完了，全部刪除</button>
-      </div>
-    </div>
-  </div>
+  <!-- PDF 暫存容器 -->
+  <div id="pdf-hidden-area"></div>
 
+  <!-- 隱私遮罩 -->
   <div id="privacy-mask">
-    <p>加密處理中</p>
-    <p style="margin-top:20px; font-size:12px;">正在生成受保護的 PDF 檔案...</p>
+    加密處理中<br>
+    <span style="font-weight:400; color:#ddd;">正在生成受保護的 PDF 檔案...</span>
   </div>
 
   <script>
@@ -261,16 +258,10 @@
           right.innerHTML = getPageHtml(currentPage + 1);
         }
       }
-      updateCounter();
+      document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '封面' : `${currentPage+1} / ${entries.length}`;
     }
 
-    function updateCounter() {
-      const c = document.getElementById('pageCounter');
-      if (viewMode === 'cover') c.textContent = '封面';
-      else c.textContent = `${currentPage + 1} / ${entries.length || 1}`;
-    }
-
-    function getPageHtml(idx, hideActions = false) {
+    function getPageHtml(idx, hideActions = false){
       if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc;">空白頁</div>`;
       const item = entries[idx];
       const mood = item.mood !== undefined && item.mood !== -1 ? MOODS[item.mood] : '';
@@ -312,145 +303,206 @@
     }
 
     function prevPage(){
-      if(viewMode === 'cover') return;
       const step = window.innerWidth <= 768 ? 1 : 2;
-      if(currentPage - step >= 0) flipTo(currentPage - step);
-      else { viewMode = 'cover'; renderPage(); }
+      if(currentPage - step < 0) { viewMode = 'cover'; renderPage(); }
+      else { currentPage -= step; renderPage(); }
+    }
+
+    function selectMood(idx) {
+      currentMoodIdx = idx;
+      document.querySelectorAll('.mood-icon').forEach((el, i) => el.classList.toggle('selected', i === idx));
     }
 
     function showNewEntryModal(){
-      if (!isAuthenticated && viewMode === 'cover') { document.getElementById('passwordModal').style.display = 'flex'; return; }
       editingIndex = -1; currentImgBase64 = ""; currentMoodIdx = -1;
-      document.getElementById('modalTitle').textContent = '撰寫日記';
-      document.getElementById('modalEntry').value = '';
+      document.getElementById('modalEntry').value = "";
       document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
       document.getElementById('previewImg').style.display = 'none';
-      document.querySelectorAll('.mood-icon').forEach(e => e.classList.remove('selected'));
+      document.querySelectorAll('.mood-icon').forEach(el => el.classList.remove('selected'));
       document.getElementById('entryModal').style.display = 'flex';
     }
 
-    function selectMood(idx){ currentMoodIdx = idx; document.querySelectorAll('.mood-icon').forEach((e, i) => e.classList.toggle('selected', i === idx)); }
+    // ====== 新增：圖片壓縮工具（選照片當下就壓縮） ======
+    async function compressImageFileToBase64(file, {
+      maxSize = 1600,      // 長邊最大像素
+      mime = 'image/jpeg', // 統一轉 jpeg 比較省
+      quality = 0.75       // 0~1
+    } = {}) {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
 
-    function handleImage(e){
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const scale = Math.min(1, maxSize / Math.max(w, h));
+      const nw = Math.max(1, Math.round(w * scale));
+      const nh = Math.max(1, Math.round(h * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = nw;
+      canvas.height = nh;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, nw, nh);
+
+      URL.revokeObjectURL(url);
+
+      return canvas.toDataURL(mime, quality);
+    }
+
+    // ====== 替換：handleImage 改成壓縮版 ======
+    async function handleImage(e) {
       const file = e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const maxW = 800, maxH = 800;
-          let w = img.width, h = img.height;
-          if (w > maxW || h > maxH) {
-            if (w > h) { h = (h / w) * maxW; w = maxW; }
-            else { w = (w / h) * maxH; h = maxH; }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          currentImgBase64 = canvas.toDataURL('image/jpeg', 0.8);
-          const preview = document.getElementById('previewImg');
-          preview.src = currentImgBase64;
-          preview.style.display = 'block';
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
+      if (!file) return;
+
+      try {
+        currentImgBase64 = await compressImageFileToBase64(file, {
+          maxSize: 1600,
+          quality: 0.75
+        });
+
+        document.getElementById('previewImg').src = currentImgBase64;
+        document.getElementById('previewImg').style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        alert('圖片讀取/壓縮失敗，請換一張照片再試一次');
+      } finally {
+        // 讓同一張照片下次仍可觸發 onchange
+        e.target.value = '';
+      }
     }
 
     function saveEntry(){
       const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
       if(!text) return;
       const data = { text, date, image: currentImgBase64, mood: currentMoodIdx };
-      if (editingIndex === -1) entries.push(data);
-      else entries[editingIndex] = data;
-      entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+      if(editingIndex === -1) entries.unshift(data); else entries[editingIndex] = data;
+      entries.sort((a,b) => new Date(b.date) - new Date(a.date));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
       document.getElementById('entryModal').style.display = 'none';
-      if (viewMode === 'cover') viewMode = 'content';
-      currentPage = 0; renderPage();
+      renderPage();
     }
 
-    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
-
     function editEntry(idx){
-      editingIndex = idx;
-      const item = entries[idx];
-      document.getElementById('modalTitle').textContent = '編輯日記';
+      editingIndex = idx; const item = entries[idx];
       document.getElementById('modalEntry').value = item.text;
       document.getElementById('modalDate').value = item.date;
-      currentImgBase64 = item.image || "";
-      currentMoodIdx = item.mood !== undefined ? item.mood : -1;
-      const preview = document.getElementById('previewImg');
-      if (currentImgBase64) { preview.src = currentImgBase64; preview.style.display = 'block'; }
-      else preview.style.display = 'none';
-      document.querySelectorAll('.mood-icon').forEach((e, i) => e.classList.toggle('selected', i === currentMoodIdx));
+      selectMood(item.mood);
+      if(item.image) {
+        currentImgBase64 = item.image;
+        document.getElementById('previewImg').src = item.image;
+        document.getElementById('previewImg').style.display = 'block';
+      } else {
+        currentImgBase64 = "";
+        document.getElementById('previewImg').style.display = 'none';
+      }
       document.getElementById('entryModal').style.display = 'flex';
     }
 
     function deleteEntry(idx){
-      if(!confirm('確定刪除這篇日記？')) return;
-      entries.splice(idx, 1);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-      if(currentPage >= entries.length) currentPage = Math.max(0, entries.length - 1);
-      renderPage();
+      if(confirm('確定刪除？')){
+        entries.splice(idx,1);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        renderPage();
+      }
     }
 
-    function showDeleteAllModal() {
-      document.getElementById('deleteAllModal').style.display = 'flex';
+    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
+
+    function waitTwoFrames(){
+      return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     }
 
-    function closeDeleteAllModal() {
-      document.getElementById('deleteAllModal').style.display = 'none';
-    }
-
-    function deleteAllEntries() {
-      localStorage.removeItem(STORAGE_KEY);
-      entries = [];
-      currentPage = 0;
-      viewMode = 'cover';
-      document.getElementById('deleteAllModal').style.display = 'none';
-      renderPage();
-    }
-
-    function waitTwoFrames() {
-      return new Promise(resolve => {
-        requestAnimationFrame(() => requestAnimationFrame(resolve));
-      });
-    }
-
-    async function exportPDF() {
-      if (!isAuthenticated) { alert("請先解鎖日記本"); return; }
-      if (!entries.length) { alert("沒有日記可以匯出"); return; }
+    // PDF 匯出（分頁渲染，並保留加密）
+    async function exportPDF(){
+      if(!isAuthenticated){
+        document.getElementById('passwordModal').style.display = 'flex';
+        return;
+      }
 
       const mask = document.getElementById('privacy-mask');
-      mask.style.display = 'flex';
+      const container = document.getElementById('pdf-hidden-area');
 
-      await waitTwoFrames();
+      if (!window.html2canvas) {
+        alert("PDF 模組載入失敗：html2canvas 不存在（請確認網路可連到 cdnjs）");
+        return;
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("PDF 模組載入失敗：jsPDF 不存在（請確認網路可連到 cdnjs）");
+        return;
+      }
 
-      const container = document.createElement('div');
-      container.id = 'pdf-hidden-area';
-      container.style.cssText = 'position:fixed; top:-99999px; left:0; width:800px; opacity:0; pointer-events:none;';
-      document.body.appendChild(container);
+      container.innerHTML = "";
 
-      entries.forEach((item, idx) => {
-        const pageDiv = document.createElement('div');
-        pageDiv.className = 'pdf-page';
-        pageDiv.style.cssText = 'width:800px; padding:60px; box-sizing:border-box; background:white; font-family:Georgia,"Microsoft JhengHei",serif; font-size:16px; line-height:28px; color:#333; page-break-after:always; min-height:1000px;';
+      const makePage = () => {
+        const p = document.createElement('div');
+        p.className = "pdf-page";
+        return p;
+      };
 
-        const mood = item.mood !== undefined && item.mood !== -1 ? MOODS[item.mood] : '';
-        const header = `<div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:14px; color:#999;"><span>${item.date.replaceAll('-','/')}</span><span>${mood}</span></div>`;
-        const textContent = `<div style="white-space:pre-wrap; margin-bottom:20px;">${item.text}</div>`;
-        const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; display:block; margin-top:10px;">` : '';
+      let current = makePage();
+      const title = document.createElement('div');
+      title.className = "pdf-title";
+      title.textContent = "陳小妤的日記本";
+      current.appendChild(title);
 
-        pageDiv.innerHTML = header + textContent + imgHtml;
-        container.appendChild(pageDiv);
+      const formatDate = (s) => (s || "").replaceAll('-', '/');
+
+      entries.forEach(item => {
+        const entry = document.createElement('div');
+        entry.className = "pdf-entry";
+
+        const header = document.createElement('div');
+        header.className = "pdf-entry-header";
+
+        const left = document.createElement('span');
+        left.textContent = formatDate(item.date);
+
+        const right = document.createElement('span');
+        right.textContent = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : "";
+
+        header.appendChild(left);
+        header.appendChild(right);
+
+        const text = document.createElement('div');
+        text.className = "pdf-entry-text";
+        text.textContent = item.text || "";
+
+        entry.appendChild(header);
+        entry.appendChild(text);
+
+        if (item.image) {
+          const img = document.createElement('img');
+          img.src = item.image; // 已是壓縮後 base64
+          entry.appendChild(img);
+        }
+
+        current.appendChild(entry);
+
+        // 超過一頁就換頁：把最後一個 entry 移到新頁
+        if (current.scrollHeight > 1125) {
+          current.removeChild(entry);
+          container.appendChild(current);
+
+          current = makePage();
+          current.appendChild(entry);
+        }
       });
 
-      await waitTwoFrames();
+      container.appendChild(current);
 
-      await Promise.all(Array.from(container.querySelectorAll('img')).map(imgEl => new Promise(resolve => {
-        if (imgEl.complete) resolve();
+      // 遮罩：避免任何閃現預覽
+      mask.style.display = "flex";
+
+      // 等待圖片載入
+      const imgs = Array.from(container.querySelectorAll('img'));
+      await Promise.all(imgs.map(imgEl => new Promise(resolve => {
+        if (imgEl.complete) return resolve();
         imgEl.onload = () => resolve();
         imgEl.onerror = () => resolve();
       })));
@@ -492,6 +544,7 @@
 
           const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
+          // 等比塞進 A4 內容區
           let drawW = contentW;
           let drawH = (canvas.height * drawW) / canvas.width;
 
