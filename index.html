@@ -1,576 +1,774 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>手帳日記 - 完美修正版</title>
-
-  <!-- jsPDF（保留加密） -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- 明確載入 html2canvas（iPhone Safari 穩定用） -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <!-- 保留（不影響；本版匯出不依賴 wrapper） -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <style>
-    /* 核心基礎樣式 */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #f5f7fa; }
-
-    body {
-      font-family: Georgia, "Microsoft JhengHei", serif;
-      color: #5D4037;
-      display: flex; justify-content: center; align-items: center;
-    }
-
-    .book-container {
-      perspective: 1200px;
-      width: 900px; height: 650px;
-      position: relative;
-    }
-
-    .book {
-      width: 100%; height: 100%;
-      position: relative;
-      transform-style: preserve-3d;
-      background: #8B4513;
-      border-radius: 20px;
-      box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-    }
-
-    /* 關鍵：修正格線對齊 */
-    .page {
-      position: absolute; width: 50%; height: 100%;
-      padding: 50px 30px 130px 30px;
-      background: white; overflow-y: auto;
-      line-height: 24px;
-      font-size: 16px;
-      background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
-      background-attachment: local;
-      box-shadow: inset 5px 0 10px rgba(0,0,0,0.1);
-      word-wrap: break-word;
-    }
-
-    .page.left { left: 0; border-radius: 20px 0 0 20px; }
-    .page.right { right: 0; border-radius: 0 20px 20px 0; }
-    .page.cover { background: #8B4513; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
-    .page-header {
-      line-height: 24px; height: 48px;
-      margin-bottom: 0px;
-      border-bottom: 2px solid #D4AF37; font-weight: bold; font-size: 20px;
-      display: flex; justify-content: space-between; align-items: flex-end;
-      padding-bottom: 4px;
-    }
-
-    .entry-actions { position: absolute; top: 15px; right: 15px; z-index: 100; display: flex; gap: 5px; }
-    .entry-actions button {
-      background: #4CAF50; color: white; border: none; padding: 4px 10px;
-      border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: bold;
-    }
-    .entry-actions .delete { background: #f44336; }
-
-    /* 翻頁動畫 */
-    .flip-sheet { position: absolute; top: 0; height: 100%; width: 50%; z-index: 2000; transform-style: preserve-3d; display: none; pointer-events: none; }
-    .flip-face { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; padding: 50px 30px; backface-visibility: hidden; background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px); }
-    .flip-sheet.rtl { right: 0; transform-origin: left center; }
-    .flip-sheet.rtl .flip-back { transform: rotateY(180deg); }
-    .flip-sheet.rtl.turn { transition: transform 0.8s ease-in-out; transform: rotateY(-180deg); }
-
-    /* 手機端適配 */
-    @media (max-width: 768px) {
-      .book-container { width: 95vw; height: 85vh; }
-      .page { width: 100% !important; border-radius: 20px !important; }
-      .page.right { display: none !important; }
-      .controls { bottom: 0; width: 100%; border-radius: 0; justify-content: space-around; padding: 10px 5px; height: 80px; }
-      .controls button { padding: 8px 5px; font-size: 12px; flex: 1; max-width: 70px; }
-    }
-
-    .controls {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(255,255,255,0.98); padding: 12px 25px; border-radius: 40px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 5000;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .controls button { background: #FF9800; border: none; color: white; padding: 10px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-
-    /* 彈窗與心情 */
-    .entry-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: center; }
-    .modal-content { background: #fffdf9; padding: 25px; border-radius: 25px; width: 90%; max-width: 500px; border: 3px solid #8B4513; position: relative; }
-    .mood-selector { position: absolute; top: 25px; right: 25px; display: flex; gap: 5px; }
-    .mood-icon { font-size: 22px; cursor: pointer; filter: grayscale(1); }
-    .mood-icon.selected { filter: grayscale(0); transform: scale(1.2); }
-    .modal-content textarea { width: 100%; height: 150px; margin-top: 15px; padding: 10px; border-radius: 10px; font-size: 16px; border: 1px solid #ddd; }
-
-    /* PDF 暫存區：不移出視窗(避免 iOS 不渲染)，但使用者看不到 */
-    #pdf-hidden-area{
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 800px;
-      background: #fff;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .pdf-page{
-      width: 800px;
-      min-height: 1125px; /* 約 A4 比例 */
-      padding: 40px 40px 30px 40px;
-      background: #fff;
-      font-family: "Microsoft JhengHei", sans-serif;
-    }
-    .pdf-title{
-      text-align:center;
-      color:#8B4513;
-      margin-bottom: 24px;
-      font-size: 28px;
-      font-weight: 700;
-    }
-    .pdf-entry{
-      padding: 18px 0;
-      border-bottom: 2px solid #D4AF37;
-      page-break-inside: avoid;
-    }
-    .pdf-entry-header{
-      display:flex;
-      justify-content:space-between;
-      font-weight:700;
-      font-size:18px;
-      margin-bottom:10px;
-      color:#333;
-    }
-    .pdf-entry-text{
-      font-size:16px;
-      line-height:1.65;
-      white-space:pre-wrap;
-      color:#222;
-    }
-    .pdf-entry img{
-      width:100%;
-      border-radius:10px;
-      margin-top:12px;
-      display:block;
-    }
-
-    /* 生成 PDF 遮罩：使用者永遠只看到這層 */
-    #privacy-mask{
-      display:none;
-      position:fixed;
-      inset:0;
-      background: rgba(0,0,0,0.85);
-      z-index: 9999;
-      color:#fff;
-      font-weight:700;
-      justify-content:center;
-      align-items:center;
-      text-align:center;
-      padding: 24px;
-    }
-  </style>
-</head>
-
-<body>
-  <div class="book-container">
-    <div class="book" id="book">
-      <div class="page left" id="leftPage"></div>
-      <div class="page right" id="rightPage"></div>
-      <div id="flipSheet" class="flip-sheet">
-        <div id="flipFront" class="flip-face"></div>
-        <div id="flipBack" class="flip-face"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="controls">
-    <button onclick="prevPage()">⬅️</button>
-    <span id="pageCounter" style="font-size:12px; font-weight:bold;">封面</span>
-    <button onclick="showNewEntryModal()">✏️新增</button>
-    <button onclick="exportPDF()">📄PDF</button>
-    <button onclick="nextPage()">➡️</button>
-  </div>
-
-  <div id="passwordModal" class="entry-modal">
-    <div class="modal-content" style="max-width: 300px; text-align: center;">
-      <h3>通關密語</h3>
-      <input type="password" id="passwordInput" style="width:100%; padding:10px; margin: 15px 0; text-align:center; border-radius:10px; border:1px solid #ddd;">
-      <button onclick="checkPassword()" style="background:#4CAF50; color:white; padding:8px 25px; border:none; border-radius:20px; font-weight:bold;">確認</button>
-    </div>
-  </div>
-
-  <div id="entryModal" class="entry-modal">
-    <div class="modal-content">
-      <h3 id="modalTitle">撰寫日記</h3>
-      <div class="mood-selector">
-        <span class="mood-icon" onclick="selectMood(0)">😊</span>
-        <span class="mood-icon" onclick="selectMood(1)">😍</span>
-        <span class="mood-icon" onclick="selectMood(2)">😆</span>
-        <span class="mood-icon" onclick="selectMood(3)">😢</span>
-        <span class="mood-icon" onclick="selectMood(4)">😫</span>
-      </div>
-      <input id="modalDate" type="date" style="width:150px; padding:8px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
-      <textarea id="modalEntry" placeholder="今天心情如何？"></textarea>
-      <div style="margin-top:10px; display:flex; align-items:center; gap:10px; justify-content:flex-end;">
-        <div id="previewBox" style="width:50px; height:50px; border:1px dashed #ccc; border-radius:5px; overflow:hidden;">
-          <img id="previewImg" style="width:100%; height:100%; object-fit:cover; display:none;">
-        </div>
-        <button onclick="document.getElementById('photoInput').click()" style="font-size:12px;">📷選照片</button>
-        <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handleImage(event)">
-      </div>
-      <div style="text-align:center; margin-top:20px;">
-        <button onclick="cancelEdit()" style="padding:8px 20px; border-radius:15px; border:1px solid #ccc; margin-right:10px;">取消</button>
-        <button onclick="saveEntry()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px; font-weight:bold;">儲存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PDF 暫存容器 -->
-  <div id="pdf-hidden-area"></div>
-
-  <!-- 隱私遮罩 -->
-  <div id="privacy-mask">
-    加密處理中<br>
-    <span style="font-weight:400; color:#ddd;">正在生成受保護的 PDF 檔案...</span>
-  </div>
-
-  <script>
-    const STORAGE_KEY = 'handbookEntries';
-    const MOODS = ['😊', '😍', '😆', '😢', '😫'];
-    const DIARY_PASSWORD = '8519';
-
-    let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = "", currentMoodIdx = -1, isAuthenticated = false, isFlipping = false;
-
-    function renderPage(){
-      const left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
-      if (viewMode === 'cover'){
-        left.className = 'page left cover';
-        left.innerHTML = `<h1>陳小妤的日記本</h1><p style="margin-top:20px; font-size:12px;">點擊右箭頭開始</p>`;
-        right.style.display = 'none';
-      } else {
-        left.className = 'page left';
-        left.innerHTML = getPageHtml(currentPage);
-        if (window.innerWidth <= 768) {
-          right.style.display = 'none';
-        } else {
-          right.style.display = 'block';
-          right.innerHTML = getPageHtml(currentPage + 1);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>陳小妤的廢話紀錄</title>
+    
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas：iPhone Safari 支援 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- wrapper -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      }
-      document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '封面' : `${currentPage+1} / ${entries.length}`;
-    }
-
-    function getPageHtml(idx, hideActions = false){
-      if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc;">空白頁</div>`;
-      const item = entries[idx];
-      const mood = item.mood !== undefined && item.mood !== -1 ? MOODS[item.mood] : '';
-      const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px;">` : '';
-      const actions = hideActions ? '' : `<div class="entry-actions"><button onclick="editEntry(${idx})">編輯</button><button class="delete" onclick="deleteEntry(${idx})">刪除</button></div>`;
-      return `${actions}<div class="page-header"><span>${item.date.replaceAll('-','/')}</span><span>${mood}</span></div><div style="padding-top:4px; white-space:pre-wrap;">${item.text}</div>${imgHtml}`;
-    }
-
-    function flipTo(targetIdx) {
-      if(isFlipping) return;
-      isFlipping = true;
-      const sheet = document.getElementById('flipSheet');
-      const front = document.getElementById('flipFront'), back = document.getElementById('flipBack');
-      front.innerHTML = getPageHtml(currentPage, true);
-      back.innerHTML = getPageHtml(targetIdx, true);
-      sheet.style.display = 'block';
-      sheet.classList.add('rtl', 'turn');
-      setTimeout(() => {
-        sheet.classList.remove('turn'); sheet.style.display = 'none';
-        currentPage = targetIdx; renderPage(); isFlipping = false;
-      }, 800);
-    }
-
-    function checkPassword(){
-      if(document.getElementById('passwordInput').value === DIARY_PASSWORD){
-        isAuthenticated = true;
-        document.getElementById('passwordModal').style.display = 'none';
-        viewMode = 'content'; currentPage = 0; renderPage();
-      } else { alert("密碼錯誤！"); }
-    }
-
-    function nextPage(){
-      if(viewMode === 'cover') {
-        if(!isAuthenticated) { document.getElementById('passwordModal').style.display='flex'; return; }
-        viewMode = 'content'; renderPage(); return;
-      }
-      const step = window.innerWidth <= 768 ? 1 : 2;
-      if(currentPage + step < entries.length) flipTo(currentPage + step);
-    }
-
-    function prevPage(){
-      const step = window.innerWidth <= 768 ? 1 : 2;
-      if(currentPage - step < 0) { viewMode = 'cover'; renderPage(); }
-      else { currentPage -= step; renderPage(); }
-    }
-
-    function selectMood(idx) {
-      currentMoodIdx = idx;
-      document.querySelectorAll('.mood-icon').forEach((el, i) => el.classList.toggle('selected', i === idx));
-    }
-
-    function showNewEntryModal(){
-      editingIndex = -1; currentImgBase64 = ""; currentMoodIdx = -1;
-      document.getElementById('modalEntry').value = "";
-      document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
-      document.getElementById('previewImg').style.display = 'none';
-      document.querySelectorAll('.mood-icon').forEach(el => el.classList.remove('selected'));
-      document.getElementById('entryModal').style.display = 'flex';
-    }
-
-    // ====== 新增：圖片壓縮工具（選照片當下就壓縮） ======
-    async function compressImageFileToBase64(file, {
-      maxSize = 1600,      // 長邊最大像素
-      mime = 'image/jpeg', // 統一轉 jpeg 比較省
-      quality = 0.75       // 0~1
-    } = {}) {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = url;
-      });
-
-      const w = img.naturalWidth || img.width;
-      const h = img.naturalHeight || img.height;
-      const scale = Math.min(1, maxSize / Math.max(w, h));
-      const nw = Math.max(1, Math.round(w * scale));
-      const nh = Math.max(1, Math.round(h * scale));
-
-      const canvas = document.createElement('canvas');
-      canvas.width = nw;
-      canvas.height = nh;
-
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, nw, nh);
-
-      URL.revokeObjectURL(url);
-
-      return canvas.toDataURL(mime, quality);
-    }
-
-    // ====== 替換：handleImage 改成壓縮版 ======
-    async function handleImage(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      try {
-        currentImgBase64 = await compressImageFileToBase64(file, {
-          maxSize: 1600,
-          quality: 0.75
-        });
-
-        document.getElementById('previewImg').src = currentImgBase64;
-        document.getElementById('previewImg').style.display = 'block';
-      } catch (err) {
-        console.error(err);
-        alert('圖片讀取/壓縮失敗，請換一張照片再試一次');
-      } finally {
-        // 讓同一張照片下次仍可觸發 onchange
-        e.target.value = '';
-      }
-    }
-
-    function saveEntry(){
-      const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
-      if(!text) return;
-      const data = { text, date, image: currentImgBase64, mood: currentMoodIdx };
-      if(editingIndex === -1) entries.unshift(data); else entries[editingIndex] = data;
-      entries.sort((a,b) => new Date(b.date) - new Date(a.date));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-      document.getElementById('entryModal').style.display = 'none';
-      renderPage();
-    }
-
-    function editEntry(idx){
-      editingIndex = idx; const item = entries[idx];
-      document.getElementById('modalEntry').value = item.text;
-      document.getElementById('modalDate').value = item.date;
-      selectMood(item.mood);
-      if(item.image) {
-        currentImgBase64 = item.image;
-        document.getElementById('previewImg').src = item.image;
-        document.getElementById('previewImg').style.display = 'block';
-      } else {
-        currentImgBase64 = "";
-        document.getElementById('previewImg').style.display = 'none';
-      }
-      document.getElementById('entryModal').style.display = 'flex';
-    }
-
-    function deleteEntry(idx){
-      if(confirm('確定刪除？')){
-        entries.splice(idx,1);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-        renderPage();
-      }
-    }
-
-    function cancelEdit(){ document.getElementById('entryModal').style.display = 'none'; }
-
-    function waitTwoFrames(){
-      return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    }
-
-    // PDF 匯出（分頁渲染，並保留加密）
-    async function exportPDF(){
-      if(!isAuthenticated){
-        document.getElementById('passwordModal').style.display = 'flex';
-        return;
-      }
-
-      const mask = document.getElementById('privacy-mask');
-      const container = document.getElementById('pdf-hidden-area');
-
-      if (!window.html2canvas) {
-        alert("PDF 模組載入失敗：html2canvas 不存在（請確認網路可連到 cdnjs）");
-        return;
-      }
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        alert("PDF 模組載入失敗：jsPDF 不存在（請確認網路可連到 cdnjs）");
-        return;
-      }
-
-      container.innerHTML = "";
-
-      const makePage = () => {
-        const p = document.createElement('div');
-        p.className = "pdf-page";
-        return p;
-      };
-
-      let current = makePage();
-      const title = document.createElement('div');
-      title.className = "pdf-title";
-      title.textContent = "陳小妤的日記本";
-      current.appendChild(title);
-
-      const formatDate = (s) => (s || "").replaceAll('-', '/');
-
-      entries.forEach(item => {
-        const entry = document.createElement('div');
-        entry.className = "pdf-entry";
-
-        const header = document.createElement('div');
-        header.className = "pdf-entry-header";
-
-        const left = document.createElement('span');
-        left.textContent = formatDate(item.date);
-
-        const right = document.createElement('span');
-        right.textContent = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : "";
-
-        header.appendChild(left);
-        header.appendChild(right);
-
-        const text = document.createElement('div');
-        text.className = "pdf-entry-text";
-        text.textContent = item.text || "";
-
-        entry.appendChild(header);
-        entry.appendChild(text);
-
-        if (item.image) {
-          const img = document.createElement('img');
-          img.src = item.image; // 已是壓縮後 base64
-          entry.appendChild(img);
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f5f7fa;
+        }
+        body {
+            font-family: 'Patrick Hand SC', 'Microsoft JhengHei', system-ui, -apple-system, sans-serif;
+            color: #5D4037;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .book-container {
+            perspective: 1200px;
+            width: 900px;
+            height: 650px;
+            position: relative;
+        }
+        .book {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            background: radial-gradient(circle at 20% 0%, #253b6e 0%, #152347 45%, #050814 100%);
+            border-radius: 20px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+        }
+        .page {
+            position: absolute;
+            width: 50%;
+            height: 100%;
+            padding: 50px 30px 130px 30px;
+            background: #ffffff;
+            overflow-y: auto;
+            line-height: 24px;
+            font-size: 16px;
+            background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
+            background-attachment: local;
+            box-shadow: inset 5px 0 12px rgba(15, 32, 52, 0.16);
+            word-wrap: break-word;
+        }
+        .page.left {
+            left: 0;
+            border-radius: 20px 0 0 20px;
+        }
+        .page.right {
+            right: 0;
+            border-radius: 0 20px 20px 0;
+        }
+        .page.cover {
+            position: relative;
+            background: radial-gradient(circle at 20% 0%, #253b6e 0%, #152347 45%, #050814 100%);
+            color: #f4d27a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            letter-spacing: 0.18em;
+            padding: 50px 40px;
+        }
+        .page.cover h1 {
+            font-size: 32px;
+            margin: 0;
+            color: #f4d27a;
+            letter-spacing: 0.22em;
+        }
+        .page.cover p {
+            margin-top: 24px !important;
+            font-size: 13px !important;
+            color: rgba(244, 210, 122, 0.85);
+            letter-spacing: 0.12em;
+        }
+        .page.cover::before {
+            content: '';
+            position: absolute;
+            top: 26px;
+            right: 26px;
+            width: 10px;
+            height: calc(100% - 52px);
+            background: linear-gradient(to bottom, #0b1120, #050814);
+            border-radius: 24px;
+            box-shadow: inset 0 0 4px rgba(255,255,255,0.15), 0 0 6px rgba(0,0,0,0.65);
         }
 
-        current.appendChild(entry);
-
-        // 超過一頁就換頁：把最後一個 entry 移到新頁
-        if (current.scrollHeight > 1125) {
-          current.removeChild(entry);
-          container.appendChild(current);
-
-          current = makePage();
-          current.appendChild(entry);
+        .page h1 {
+            font-size: 36px;
+            margin: 0;
         }
-      });
-
-      container.appendChild(current);
-
-      // 遮罩：避免任何閃現預覽
-      mask.style.display = "flex";
-
-      // 等待圖片載入
-      const imgs = Array.from(container.querySelectorAll('img'));
-      await Promise.all(imgs.map(imgEl => new Promise(resolve => {
-        if (imgEl.complete) return resolve();
-        imgEl.onload = () => resolve();
-        imgEl.onerror = () => resolve();
-      })));
-
-      await waitTwoFrames();
-
-      try {
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait',
-          encryption: { userPassword: DIARY_PASSWORD, ownerPassword: DIARY_PASSWORD }
-        });
-
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        const contentW = pageW - margin * 2;
-        const contentH = pageH - margin * 2;
-
-        const pages = Array.from(container.querySelectorAll('.pdf-page'));
-
-        for (let i = 0; i < pages.length; i++) {
-          const el = pages[i];
-
-          const canvas = await window.html2canvas(el, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            windowWidth: 800,
-            onclone: (clonedDoc) => {
-              const c = clonedDoc.getElementById('pdf-hidden-area');
-              if (c) c.style.opacity = '1';
-              const m = clonedDoc.getElementById('privacy-mask');
-              if (m) m.style.display = 'none';
+        .page-header {
+            line-height: 24px;
+            height: 48px;
+            margin-bottom: 0px;
+            border-bottom: 2px solid #8da2b8;
+            font-weight: bold;
+            font-size: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 4px;
+        }
+        .entry-actions {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 100;
+            display: flex;
+            gap: 5px;
+        }
+        .entry-actions button {
+            background: #3c6e91;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .entry-actions .delete {
+            background: #f44336;
+        }
+        .flip-sheet {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            z-index: 2000;
+            transform-style: preserve-3d;
+            display: none;
+            pointer-events: none;
+        }
+        .flip-face {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            padding: 50px 30px;
+            backface-visibility: hidden;
+            background-image: repeating-linear-gradient(0deg, #f0f0f0 0px, #f0f0f0 1px, transparent 1px, transparent 24px);
+        }
+        .flip-sheet.rtl {
+            right: 0;
+            transform-origin: left center;
+        }
+        .flip-sheet.rtl .flip-back {
+            transform: rotateY(180deg);
+        }
+        .flip-sheet.rtl.turn {
+            transition: transform 0.8s ease-in-out;
+            transform: rotateY(-180deg);
+        }
+        @media (max-width: 768px) {
+            .book-container {
+                width: 95vw;
+                height: 85vh;
             }
-          });
+            .page {
+                width: 100% !important;
+                border-radius: 20px !important;
+            }
+            .page.right {
+                display: none !important;
+            }
+            .controls {
+                bottom: 0;
+                width: 100%;
+                border-radius: 0;
+                justify-content: space-around;
+                padding: 10px 5px;
+                height: 80px;
+            }
+            .controls button {
+                padding: 8px 5px;
+                font-size: 12px;
+                flex: 1;
+                max-width: 70px;
+            }
+            .controls #pageCounter {
+                font-size: 10px !important;
+            }
+        }
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(245,248,252,0.96);
+            padding: 12px 25px;
+            border-radius: 40px;
+            box-shadow: 0 10px 26px rgba(23,42,64,0.25);
+            z-index: 5000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .controls button {
+            background: #3c6e91;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .entry-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 6000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #fffdf9;
+            padding: 25px;
+            border-radius: 25px;
+            width: 90%;
+            max-width: 500px;
+            border: 3px solid #8B4513;
+            position: relative;
+        }
+        .mood-selector {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: flex;
+            gap: 5px;
+        }
+        .mood-icon {
+            font-size: 22px;
+            cursor: pointer;
+            filter: grayscale(1);
+        }
+        .mood-icon.selected {
+            filter: grayscale(0);
+            transform: scale(1.2);
+        }
+        .modal-content textarea {
+            width: 100%;
+            height: 150px;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+        }
+        /* PDF 輸出專用 - iOS 避免螢幕截圖*/
+        #pdf-hidden-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 800px;
+            background: #fff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .pdf-page {
+            width: 800px;
+            min-height: 1125px; /* A4 比例 */
+            padding: 40px 40px 30px 40px;
+            background: #fff;
+            font-family: 'Patrick Hand SC', 'Microsoft JhengHei', system-ui, sans-serif;
+            /* 🔥 關鍵修改1：使用 repeating-linear-gradient 建立格線 */
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 23px,
+                #d4dde7 23px,
+                #d4dde7 24px
+            );
+            background-size: 100% 24px;
+            background-position: 0 0;
+        }
+        .pdf-title {
+            text-align:center;
+            color:#8B4513;
+            margin-bottom: 24px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .pdf-entry {
+            padding: 18px 0;
+            border-bottom: 2px solid #8da2b8;
+            page-break-inside: avoid;
+        }
+        .pdf-entry-header {
+            display:flex;
+            justify-content:space-between;
+            font-weight:700;
+            font-size:18px;
+            margin-bottom:10px;
+            color:#333;
+        }
+        .pdf-entry-text {
+            font-size:16px;
+            line-height:1.65;
+            white-space:pre-wrap;
+            color:#222;
+            /* 🔥 關鍵修改2：強制文字換行 */
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        .pdf-entry img {
+            width:100%;
+            border-radius:10px;
+            margin-top:12px;
+            display:block;
+        }
+        /* PDF 輸出防窺幕 */
+        #privacy-mask {
+            display:none;
+            position:fixed;
+            inset:0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            color:#fff;
+            font-weight:700;
+            justify-content:center;
+            align-items:center;
+            text-align:center;
+            padding: 24px;
+        }
+    </style>
 
-          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="book-container">
+        <div class="book" id="book">
+            <div class="page left" id="leftPage"></div>
+            <div class="page right" id="rightPage"></div>
+            <div id="flipSheet" class="flip-sheet">
+                <div id="flipFront" class="flip-face"></div>
+                <div id="flipBack" class="flip-face"></div>
+            </div>
+        </div>
+    </div>
 
-          // 等比塞進 A4 內容區
-          let drawW = contentW;
-          let drawH = (canvas.height * drawW) / canvas.width;
+    <div class="controls">
+        <button onclick="prevPage()">⬅️</button>
+        <span id="pageCounter" style="font-size:12px; font-weight:bold;"></span>
+        <button onclick="showNewEntryModal()">✍️新增</button>
+        <button onclick="exportPDF()">📄PDF</button>
+        <button onclick="showDeleteAllModal()">🗑️全部刪除</button>
+        <button onclick="nextPage()">➡️</button>
+    </div>
 
-          if (drawH > contentH) {
-            drawH = contentH;
-            drawW = (canvas.width * drawH) / canvas.height;
-          }
+    <!-- 密碼驗證 -->
+    <div id="passwordModal" class="entry-modal">
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <h3>🔐紅紅火火</h3>
+            <input type="password" id="passwordInput" style="width:100%; padding:10px; margin: 15px 0; text-align:center; border-radius:10px; border:1px solid #ddd;">
+            <button onclick="checkPassword()" style="background:#4CAF50; color:white; padding:8px 25px; border:none; border-radius:20px; font-weight:bold;">芝麻開門✅</button>
+        </div>
+    </div>
 
-          const x = margin + (contentW - drawW) / 2;
-          const y = margin;
+    <!-- 新增全部刪除確認對話框 -->
+    <div id="deleteAllModal" class="entry-modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3>⚠️ 請確認本月日記已備份完成</h3>
+            <div style="margin-top: 30px; display: flex; justify-content: center; gap: 20px;">
+                <button onclick="cancelDeleteAll()" style="background:#9E9E9E; color:white; padding:12px 25px; border:none; border-radius:20px; font-weight:bold; font-size: 16px;">ㄟ 我還沒好</button>
+                <button onclick="confirmDeleteAll()" style="background:#f44336; color:white; padding:12px 25px; border:none; border-radius:20px; font-weight:bold; font-size: 16px;">好了！刪除！</button>
+            </div>
+        </div>
+    </div>
 
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH);
+    <!-- 新增/編輯日記 -->
+    <div id="entryModal" class="entry-modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">✍️ 新增日記</h3>
+            <div class="mood-selector">
+                <span class="mood-icon" onclick="selectMood(0)">😊</span>
+                <span class="mood-icon" onclick="selectMood(1)">😢</span>
+                <span class="mood-icon" onclick="selectMood(2)">😡</span>
+                <span class="mood-icon" onclick="selectMood(3)">😴</span>
+                <span class="mood-icon" onclick="selectMood(4)">🤔</span>
+            </div>
+            <input id="modalDate" type="date" style="width:150px; padding:8px; margin-top:10px; border-radius:8px; border:1px solid #ddd;">
+            <textarea id="modalEntry" placeholder="📝"></textarea>
+            <div style="margin-top:10px; display:flex; align-items:center; gap:10px; justify-content:flex-end;">
+                <div id="previewBox" style="width:50px; height:50px; border:1px dashed #ccc; border-radius:5px; overflow:hidden;">
+                    <img id="previewImg" style="width:100%; height:100%; object-fit:cover; display:none;">
+                </div>
+                <button onclick="document.getElementById('photoInput').click();" style="font-size:12px;">📷</button>
+                <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handleImage(event)">
+            </div>
+            <div style="text-align:center; margin-top:20px;">
+                <button onclick="cancelEdit()" style="padding:8px 20px; border-radius:15px; border:1px solid #ccc; margin-right:10px;">❌取消</button>
+                <button onclick="saveEntry()" style="background:#4CAF50; color:white; padding:8px 20px; border:none; border-radius:15px; font-weight:bold;">💾儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF 輸出用隱藏區域 -->
+    <div id="pdf-hidden-area"></div>
+
+    <!-- 防窺幕 -->
+    <div id="privacy-mask">
+        🔐 PDF 產生中...<br>
+        <span style="font-weight:400; color:#ddd;">請勿切換視窗以保護隱私</span>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'handbookEntries';
+        const MOODS = ['😊', '😢', '😡', '😴', '🤔'];
+        const DIARY_PASSWORD = '8519';
+
+        let entries = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let currentPage = 0, viewMode = 'cover', editingIndex = -1, currentImgBase64 = '', currentMoodIdx = -1, isAuthenticated = false, isFlipping = false;
+
+        function renderPage() {
+            const left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
+            if (viewMode === 'cover') {
+                left.className = 'page left cover';
+                left.innerHTML = `<h1> 陳小妤的廢話紀錄 </h1><p style="margin-top:20px; font-size:12px;">共 ${entries.length} 篇</p>`;
+                right.style.display = 'none';
+            } else {
+                left.className = 'page left';
+                left.innerHTML = getPageHtml(currentPage);
+                if (window.innerWidth <= 768) {
+                    right.style.display = 'none';
+                } else {
+                    right.style.display = 'block';
+                    right.innerHTML = getPageHtml(currentPage + 1);
+                }
+            }
+            document.getElementById('pageCounter').textContent = viewMode === 'cover' ? '📖' : `${currentPage+1}/${entries.length}`;
         }
 
-        pdf.save('My-Diary.pdf');
-      } catch (err) {
-        console.error(err);
-        alert("匯出失敗，請再試一次");
-      } finally {
-        mask.style.display = "none";
-        container.innerHTML = "";
-      }
-    }
+        function getPageHtml(idx, hideActions = false) {
+            if (idx < 0 || idx >= entries.length) return `<div style="text-align:center; padding-top:100px; color:#ccc;">📭</div>`;
+            const item = entries[idx];
+            const mood = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : '';
+            const imgHtml = item.image ? `<img src="${item.image}" style="max-width:100%; border-radius:8px; margin-top:10px;">` : '';
+            const actions = hideActions ? '' : `<div class="entry-actions"><button onclick="editEntry(${idx})">✏️編輯</button><button class="delete" onclick="deleteEntry(${idx})">🗑️刪除</button></div>`;
+            return `${actions}<div class="page-header"><span>${item.date.replaceAll('-','.')}</span><span>${mood}</span></div><div style="padding-top:4px; white-space:pre-wrap;">${item.text}</div>${imgHtml}`;
+        }
 
-    window.onload = renderPage;
-  </script>
+        function flipTo(targetIdx) {
+            if(isFlipping) return;
+            isFlipping = true;
+            const sheet = document.getElementById('flipSheet');
+            const front = document.getElementById('flipFront'), back = document.getElementById('flipBack');
+            front.innerHTML = getPageHtml(currentPage, true);
+            back.innerHTML = getPageHtml(targetIdx, true);
+            sheet.style.display = 'block';
+            sheet.classList.add('rtl', 'turn');
+            setTimeout(() => {
+                sheet.classList.remove('turn');
+                sheet.style.display = 'none';
+                currentPage = targetIdx;
+                renderPage();
+                isFlipping = false;
+            }, 800);
+        }
+
+        function checkPassword() {
+            if(document.getElementById('passwordInput').value === DIARY_PASSWORD) {
+                isAuthenticated = true;
+                document.getElementById('passwordModal').style.display = 'none';
+                viewMode = 'content';
+                currentPage = 0;
+                renderPage();
+            } else {
+                alert('錯三次會爆炸ㄛ ');
+            }
+        }
+
+        function nextPage() {
+            if(viewMode === 'cover') {
+                if(!isAuthenticated) {
+                    document.getElementById('passwordModal').style.display='flex';
+                    return;
+                }
+                viewMode = 'content';
+                renderPage();
+                return;
+            }
+            const step = (window.innerWidth <= 768) ? 1 : 2;
+            if(currentPage + step < entries.length) {
+                flipTo(currentPage + step);
+            }
+        }
+
+        function prevPage() {
+            const step = (window.innerWidth <= 768) ? 1 : 2;
+            if(currentPage - step < 0) {
+                viewMode = 'cover';
+                renderPage();
+            } else {
+                currentPage -= step;
+                renderPage();
+            }
+        }
+
+        function selectMood(idx) {
+            currentMoodIdx = idx;
+            document.querySelectorAll('.mood-icon').forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+        }
+
+        function showNewEntryModal() {
+            editingIndex = -1;
+            currentImgBase64 = '';
+            currentMoodIdx = -1;
+            document.getElementById('modalEntry').value = '';
+            document.getElementById('modalDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('previewImg').style.display = 'none';
+            document.querySelectorAll('.mood-icon').forEach(el => el.classList.remove('selected'));
+            document.getElementById('entryModal').style.display = 'flex';
+        }
+
+        async function compressImageFileToBase64(file, maxSize = 1600, mime = 'image/jpeg', quality = 0.75) {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = url;
+            });
+            const w = img.naturalWidth || img.width;
+            const h = img.naturalHeight || img.height;
+            const scale = Math.min(1, maxSize / Math.max(w, h));
+            const nw = Math.max(1, Math.round(w * scale));
+            const nh = Math.max(1, Math.round(h * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = nw;
+            canvas.height = nh;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, nw, nh);
+            URL.revokeObjectURL(url);
+            return canvas.toDataURL(mime, quality);
+        }
+
+        async function handleImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                currentImgBase64 = await compressImageFileToBase64(file, 1600, 'image/jpeg', 0.75);
+                document.getElementById('previewImg').src = currentImgBase64;
+                document.getElementById('previewImg').style.display = 'block';
+            } catch (err) {
+                console.error(err);
+                alert('❌');
+            } finally {
+                e.target.value = '';
+            }
+        }
+
+        function saveEntry() {
+            const text = document.getElementById('modalEntry').value, date = document.getElementById('modalDate').value;
+            if(!text) return;
+            const data = { text, date, image: currentImgBase64, mood: currentMoodIdx };
+            if(editingIndex === -1) {
+                entries.unshift(data);
+            } else {
+                entries[editingIndex] = data;
+            }
+            entries.sort((a,b) => new Date(b.date) - new Date(a.date));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+            document.getElementById('entryModal').style.display = 'none';
+            renderPage();
+        }
+
+        function editEntry(idx) {
+            editingIndex = idx;
+            const item = entries[idx];
+            document.getElementById('modalEntry').value = item.text;
+            document.getElementById('modalDate').value = item.date;
+            selectMood(item.mood);
+            if(item.image) {
+                currentImgBase64 = item.image;
+                document.getElementById('previewImg').src = item.image;
+                document.getElementById('previewImg').style.display = 'block';
+            } else {
+                currentImgBase64 = '';
+                document.getElementById('previewImg').style.display = 'none';
+            }
+            document.getElementById('entryModal').style.display = 'flex';
+        }
+
+        function deleteEntry(idx) {
+            if(confirm('🗑️')) {
+                entries.splice(idx,1);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+                renderPage();
+            }
+        }
+
+        function cancelEdit() {
+            document.getElementById('entryModal').style.display = 'none';
+        }
+
+        function showDeleteAllModal() {
+            if(!isAuthenticated) {
+                document.getElementById('passwordModal').style.display='flex';
+                return;
+            }
+            document.getElementById('deleteAllModal').style.display = 'flex';
+        }
+
+        function cancelDeleteAll() {
+            document.getElementById('deleteAllModal').style.display = 'none';
+        }
+
+        function confirmDeleteAll() {
+            entries = [];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+            document.getElementById('deleteAllModal').style.display = 'none';
+            viewMode = 'cover';
+            currentPage = 0;
+            renderPage();
+        }
+
+        function waitTwoFrames() {
+            return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        }
+
+        /* ========== PDF 輸出 ========== */
+        async function exportPDF() {
+            if(!isAuthenticated) {
+                document.getElementById('passwordModal').style.display = 'flex';
+                return;
+            }
+            const mask = document.getElementById('privacy-mask');
+            const container = document.getElementById('pdf-hidden-area');
+            if (!window.html2canvas) {
+                alert('PDF 功能需要 html2canvas，請檢查 cdnjs 是否載入。');
+                return;
+            }
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert('PDF 功能需要 jsPDF，請檢查 cdnjs 是否載入。');
+                return;
+            }
+            container.innerHTML = '';
+            const makePage = () => {
+                const p = document.createElement('div');
+                p.className = 'pdf-page';
+                return p;
+            };
+            let current = makePage();
+            const title = document.createElement('div');
+            title.className = 'pdf-title';
+            title.textContent = '陳小妤的廢話紀錄';
+            current.appendChild(title);
+            const formatDate = (s) => s.replaceAll('-','.');
+            entries.forEach(item => {
+                const entry = document.createElement('div');
+                entry.className = 'pdf-entry';
+                const header = document.createElement('div');
+                header.className = 'pdf-entry-header';
+                const left = document.createElement('span');
+                left.textContent = formatDate(item.date);
+                const right = document.createElement('span');
+                right.textContent = (item.mood !== undefined && item.mood !== -1) ? MOODS[item.mood] : '';
+                header.appendChild(left);
+                header.appendChild(right);
+                const text = document.createElement('div');
+                text.className = 'pdf-entry-text';
+                text.textContent = item.text;
+                entry.appendChild(header);
+                entry.appendChild(text);
+                if (item.image) {
+                    const img = document.createElement('img');
+                    img.src = item.image;
+                    entry.appendChild(img);
+                }
+                current.appendChild(entry);
+                if (current.scrollHeight > 1125) {
+                    current.removeChild(entry);
+                    container.appendChild(current);
+                    current = makePage();
+                    current.appendChild(entry);
+                }
+            });
+            container.appendChild(current);
+            mask.style.display = 'flex';
+            const imgs = Array.from(container.querySelectorAll('img'));
+            await Promise.all(imgs.map(imgEl => new Promise(resolve => {
+                if (imgEl.complete) return resolve();
+                imgEl.onload = resolve;
+                imgEl.onerror = resolve;
+            })));
+            await waitTwoFrames();
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait',
+                    encryption: {
+                        userPassword: DIARY_PASSWORD,
+                        ownerPassword: DIARY_PASSWORD
+                    }
+                });
+                const pageW = pdf.internal.pageSize.getWidth();
+                const pageH = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                const contentW = pageW - margin*2;
+                const contentH = pageH - margin*2;
+                const pages = Array.from(container.querySelectorAll('.pdf-page'));
+                for (let i = 0; i < pages.length; i++) {
+                    const el = pages[i];
+                    const canvas = await window.html2canvas(el, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        windowWidth: 800,
+                        logging: false,
+                        onclone: (clonedDoc) => {
+                            const c = clonedDoc.getElementById('pdf-hidden-area');
+                            if (c) c.style.opacity = '1';
+                            const m = clonedDoc.getElementById('privacy-mask');
+                            if (m) m.style.display = 'none';
+                        }
+                    });
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    let drawW = contentW;
+                    let drawH = (canvas.height * drawW) / canvas.width;
+                    if (drawH > contentH) {
+                        drawH = contentH;
+                        drawW = (canvas.width * drawH) / canvas.height;
+                    }
+                    const x = margin + (contentW - drawW)/2;
+                    const y = margin;
+                    if (i > 0) pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', x, y, drawW, drawH);
+                }
+                pdf.save('My-Diary.pdf');
+            } catch (err) {
+                console.error(err);
+                alert('❌ PDF 產生失敗');
+            } finally {
+                mask.style.display = 'none';
+                container.innerHTML = '';
+            }
+        }
+
+        window.onload = renderPage;
+    </script>
 </body>
 </html>
