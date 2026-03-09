@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>陳小妤的廢話紀錄</title>
+    <title>陳小妤的廢話</title>
     
     <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -443,7 +443,7 @@
             const left = document.getElementById('leftPage'), right = document.getElementById('rightPage');
             if (viewMode === 'cover') {
                 left.className = 'page left cover';
-                left.innerHTML = `<h1> 陳小妤的廢話紀錄 </h1><p style="margin-top:20px; font-size:12px;">共 ${entries.length} 篇</p>`;
+                left.innerHTML = `<h1> 陳小妤的廢話 </h1><p style="margin-top:20px; font-size:12px;">共 ${entries.length} 篇</p>`;
                 right.style.display = 'none';
             } else {
                 left.className = 'page left';
@@ -673,7 +673,7 @@
             let current = makePage();
             const title = document.createElement('div');
             title.className = 'pdf-title';
-            title.textContent = '陳小妤的廢話紀錄';
+            title.textContent = '陳小妤的廢話';
             current.appendChild(title);
             const formatDate = (s) => s.replaceAll('-','.');
             entries.forEach(item => {
