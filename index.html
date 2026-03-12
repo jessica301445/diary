@@ -673,10 +673,10 @@
             let current = makePage();
             const title = document.createElement('div');
             title.className = 'pdf-title';
-            title.textContent = '陳小妤的廢話';
+            title.textContent = '📖 我的手冊 📖';
             current.appendChild(title);
             const formatDate = (s) => s.replaceAll('-','.');
-            entries.forEach(item => {
+            entries.forEach((item, index) => {
                 const entry = document.createElement('div');
                 entry.className = 'pdf-entry';
                 const header = document.createElement('div');
@@ -697,13 +697,12 @@
                     img.src = item.image;
                     entry.appendChild(img);
                 }
-                current.appendChild(entry);
-                if (current.scrollHeight > 1125) {
-                    current.removeChild(entry);
+                // 從第二篇日記開始，每篇獨立一頁
+                if (index > 0) {
                     container.appendChild(current);
                     current = makePage();
-                    current.appendChild(entry);
                 }
+                current.appendChild(entry);
             });
             container.appendChild(current);
             mask.style.display = 'flex';
